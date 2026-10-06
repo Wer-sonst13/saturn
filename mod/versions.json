@@ -1,5 +1,20 @@
 {
-  "buildtFuer": "1.21.1",
+  "_hinweis": [
+    "Pro Minecraft-Version ein eigener Build. Yarn benennt zwischen den",
+    "Versionen um, deshalb sieht eine Jar fuer 1.21.1 auf 1.21.5 nichts.",
+    "",
+    "Stand: gebaut und im Spiel geprueft sind 1.21.1 bis 1.21.5.",
+    "1.21.6 bis 1.21.11 sind eingetragen, schlagen aber noch fehl:",
+    "ab 1.21.6 hat Minecraft die Maus- und Tastatureingabe umgebaut",
+    "(Click statt (double, int, int)) und benutzt Matrix3x2fStack statt",
+    "MatrixStack. Das trifft die Bildschirme und das HUD-Rendering, also",
+    "mehr als die zwei Dateien, die es bis 1.21.5 gekostet hat.",
+    "",
+    "buildmod.bat baut alle Eintraege und meldet, welche gelungen sind;",
+    "der Launcher legt nur die gebauten Jars ins Setup. Eine Version ohne",
+    "Jar startet ganz normal, nur eben ohne Menue."
+  ],
+  "buildtFuer": "1.21.4",
   "versionen": {
     "1.21.1":  { "yarn": "1.21.1+build.3",  "loader": "0.19.5", "fabric": "0.116.17+1.21.1" },
     "1.21.2":  { "yarn": "1.21.2+build.1",  "loader": "0.19.5", "fabric": "0.106.1+1.21.2" },

@@ -1,16 +1,134 @@
-plugins { id 'fabric-loom' version '1.9-SNAPSHOT' }
-version = project.mod_version
+plugins { id 'fabric-loom' version '1.18.2' }
+
+import groovy.json.JsonSlurper
+
+// --------------------------------------------------------------- Version
+//
+// Der Launcher unterstuetzt mehrere Minecraft-Versionen. Weil sich die
+// Yarn-Bezeichner zwischen den Versionen unterscheiden, gibt es EINEN Build
+// je Version und damit auch eine eigene Jar.
+//
+//   gradle build                  -> die Vorgabe aus versions.json
+//   gradle build -Pmc=1.21.11      -> gezielt eine andere
+//   SATURN_MC=1.21.11 gradle build -> dasselbe, aber quoting-sicher
+//
+// build.bat und der GitHub-Workflow laufen alle Schluessel aus
+// versions.json durch. Dieselbe Datei liest der Launcher, um zu wissen,
+// welche Jars es gibt.
+
+// Die Abhaengigkeiten stehen in versions.json, damit Gradle und der
+// Launcher dieselbe Quelle benutzen und nicht auseinanderlaufen.
+def daten = new JsonSlurper().parse(file("versions.json"))
+def alleVersionen = daten.versionen.keySet().sort() as List
+
+// Die gewuenschte Version kommt aus der Umgebungsvariable SATURN_MC oder aus
+// -Pmc. Die Umgebungsvariable hat Vorrang, weil sie sich auch aus Node
+// (Launcher) und aus GitHub Actions sicher setzen laesst - bei -Pmc=1.21.1
+// zerlegen manche Shells den Wert an den Punkten.
+def ausUmgebung = System.getenv("SATURN_MC")
+def gewaehlt = ausUmgebung?.trim()
+if (!gewaehlt) {
+    gewaehlt = project.hasProperty("mc") ? project.property("mc").toString().trim() : daten.buildtFuer
+}
+def eintrag = daten.versionen[gewaehlt]
+
+if (eintrag == null) {
+    throw new GradleException(
+        "Minecraft '${gewaehlt}' steht nicht in versions.json.\n" +
+        "Bekannt sind: ${alleVersionen.join(', ')}")
+}
+
+def mc = gewaehlt
+def modVer = project.mod_version
+
+logger.lifecycle("Saturn: baue Minecraft ${mc}  (Yarn ${eintrag.yarn}, Fabric-API ${eintrag.fabric})")
+
 group = 'gg.saturn'
-base { archivesName = 'saturn' }
+base { archivesName = "saturn-${mc}" }
+
 dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    minecraft "com.mojang:minecraft:${mc}"
+    mappings "net.fabricmc:yarn:${eintrag.yarn}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${eintrag.loader}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${eintrag.fabric}"
 }
+
+// ------------------------------------------------------------ Quellordner
+//
+// Der allermeiste Code ist zwischen den Minecraft-Versionen gleich. Nur
+// wenige Stellen wurden von Mojang umgebaut - dort gibt es je eine Variante
+// pro Quellordner, und der Build nimmt den passenden dazu:
+//
+//   src/main/java      alles, was ueberall gleich ist
+//   src/v1_21_1/java    nur fuer 1.21.1
+//   src/v1_21_2plus/java ab 1.21.2
+//
+// Grund dafuer ist der Fog-Record (kam mit 1.21.2) und das EntityRenderState
+// (das es vor 1.21.2 noch nicht gab). Beide Klassen lassen sich nicht
+// gleichzeitig in einer Datei unterbringen.
+
+def varianten = [
+    "1.21.1": ["v1_21_1"],
+    "1.21.2": ["v1_21_2plus"],
+    "1.21.3": ["v1_21_2plus"],
+    "1.21.4": ["v1_21_2plus"],
+    "1.21.5": ["v1_21_2plus"],
+    "1.21.6": ["v1_21_2plus"],
+    "1.21.7": ["v1_21_2plus"],
+    "1.21.8": ["v1_21_2plus"],
+    "1.21.9": ["v1_21_2plus"],
+    "1.21.10": ["v1_21_2plus"],
+    "1.21.11": ["v1_21_2plus"],
+]
+def ordner = varianten[mc]
+if (ordner == null) {
+    throw new GradleException(
+        "Fuer Minecraft ${mc} ist kein Quellordner hinterlegt.\n" +
+        "Eintragen in build.gradle (Schluessel \"varianten\") - welche Ordner es gibt,\n" +
+        "zeigt src/.")
+}
+
+sourceSets.main.java.srcDirs = ["src/main/java"] + ordner.collect { "src/${it}/java" }
+logger.lifecycle("Saturn: Quellen ${sourceSets.main.java.srcDirs.join(', ')}")
+
+// ------------------------------------------------------------ fabric.mod.json
+// Die Minecraft-Abhaengigkeit muss zur gebauten Version passen, sonst lehnt
+// Fabric die Mod ab. Bewusst exakt und ohne "~": "~1.21.4" wuerde auch
+// 1.21.3 einschliessen, obwohl dort eine andere Jar gehoert.
 processResources {
-    inputs.property "version", project.version
-    filesMatching("fabric.mod.json") { expand "version": project.version }
+    inputs.property "version", modVer
+    inputs.property "minecraft", mc
+    filesMatching("fabric.mod.json") {
+        expand(
+            "version": modVer,
+            "minecraft": mc
+        )
+    }
 }
+
 tasks.withType(JavaCompile).configureEach { it.options.release = 21 }
 java { sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21 }
+
+// Gibt die unterstuetzten Versionen aus, eine je Zeile. buildmod.bat
+// benutzt das, um die Liste zu bekommen - damit bleibt versions.json die
+// einzige Stelle, an der Versionen eingetragen werden.
+tasks.register("saturnVersionen") {
+    doLast {
+        alleVersionen.each { println it }
+    }
+}
+
+// Wie oben, aber in eine Datei. buildmod.bat liest die so - eine Ausgabe,
+// die man in einer Batch-Schleife zuverlaessig einsammeln kann, gibt es bei
+// Gradle nicht, weil es dazwischen immer Meldungen schreibt.
+tasks.register("saturnVersionenDatei") {
+    def ziel = layout.buildDirectory.file("versionen.txt")
+    inputs.property "versionen", alleVersionen
+    outputs.file ziel
+    doLast {
+        def f = ziel.get().asFile
+        f.parentFile.mkdirs()
+        f.setText(alleVersionen.join("\n"), "UTF-8")
+        logger.lifecycle("Saturn: ${alleVersionen.size()} Versionen in ${f}")
+    }
+}

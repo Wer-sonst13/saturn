@@ -11,8 +11,12 @@ mod/.gradle/
 mod/run/
 mod/out/
 
-# Die Mod wird beim Bauen erzeugt (lokal oder in GitHub Actions)
-resources/saturn-mod.jar
+# Die Mod wird beim Bauen erzeugt (lokal oder in GitHub Actions).
+# Eine Jar je Minecraft-Version, der Name nennt die Version.
+resources/saturn-*.jar
+
+# Werkzeug-Cache, den sich die Bauen hole n (Gradle, JDK, Node)
+.toolcache/
 
 # Test-Hilfsskripte für die Oberfläche
 bwtest.js

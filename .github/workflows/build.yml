@@ -33,36 +33,35 @@ jobs:
           }
           Write-Host "Alle Java-Dateien passen zu ihren Klassen."
 
+      # Gradle laeuft hier auf Java 25, weil das aktuelle Fabric-Loom das beim
+      # Start verlangt. Gebaut werden aber weiterhin Java-21-Klassen, weil
+      # Minecraft 1.21.x Java 21 braucht.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 25
 
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.11.1"
+          gradle-version: "9.8.0"
 
-      - name: Mod bauen
-        working-directory: mod
-        run: gradle build --console=plain
+      # resources/saturn-<version>.jar ist bewusst nicht im Repo (siehe
+      # .gitignore) und wird hier frisch erzeugt - eine Jar je Minecraft-
+      # Version, weil Yarn zwischen den Versionen umbenennt.
+      - name: Mod fuer alle Versionen bauen
+        shell: cmd
+        run: buildmod.bat
 
-      - name: Mod-Datei suchen
-        id: jar
+      - name: Ergebnis anzeigen
         shell: pwsh
         run: |
-          $jar = Get-ChildItem mod/build/libs/*.jar |
-            Where-Object { $_.Name -notmatch 'sources|dev' } |
-            Select-Object -First 1
-          if (-not $jar) { throw 'Keine Mod-Jar gefunden' }
-          "pfad=$($jar.FullName)" >> $env:GITHUB_OUTPUT
-          "name=$($jar.Name)"    >> $env:GITHUB_OUTPUT
-          Write-Host "Mod: $($jar.FullName) ($($jar.Length) Bytes)"
-
-      # resources/saturn-mod.jar ist bewusst nicht im Repo (siehe .gitignore)
-      # und wird hier frisch erzeugt.
-      - name: Mod in resources ablegen
-        shell: pwsh
-        run: Copy-Item "${{ steps.jar.outputs.pfad }}" resources/saturn-mod.jar -Force
+          Write-Host '--- Mod-Jars ---'
+          Get-ChildItem resources/saturn-*.jar | Select-Object Name, Length
+          $anzahl = @(Get-ChildItem resources/saturn-*.jar).Count
+          if ($anzahl -eq 0) {
+            throw 'Keine Mod gebaut - resources\saturn-*.jar ist leer'
+          }
+          Write-Host "$anzahl Minecraft-Version(en) mit Mod"
 
       - uses: actions/setup-node@v4
         with:
@@ -75,8 +74,8 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem dist | Select-Object Name, Length
-          if (-not (Test-Path resources/saturn-mod.jar)) {
-            throw 'Mod fehlt im Setup - resources/saturn-mod.jar wurde nicht erzeugt'
+          if (-not @(Get-ChildItem resources/saturn-*.jar).Count) {
+            throw 'Mod fehlt im Setup - resources/saturn-*.jar wurde nicht erzeugt'
           }
 
       - uses: actions/upload-artifact@v4

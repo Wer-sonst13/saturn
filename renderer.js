@@ -12,6 +12,24 @@ let modFiles = [], worlds = [], shots = [], logTarget = null, logLines = [];
 let timer = null;
 let skinView = null, skinAcc = null, lastFrame = 0;
 
+// ------------------------------------------------------- Unterstuetzte Versionen
+// Welche Minecraft-Versionen es mit Menue gibt, steht in mod/versions.json.
+// Wird sie im Installer nicht mitgeliefert, bleibt die Liste leer und die
+// Oberflaeche sagt das auch - dann wird nichts versprochen, was nicht da ist.
+function saturnVersionen() {
+  if (typeof window.__saturnVersionen === "object" && window.__saturnVersionen) {
+    return window.__saturnVersionen;
+  }
+  return [];
+}
+// Erste unterstuetzte Version, die auch in der Liste der Fabric-Versionen
+// steht - die Voreinstellung des neuen Profils.
+let SATURN_VORBEUGUNG = "";
+for (const v of saturnVersionen()) {
+  if (versions.includes(v)) { SATURN_VORBEUGUNG = v; break; }
+}
+if (!SATURN_VORBEUGUNG) SATURN_VORBEUGUNG = saturnVersionen()[0] || versions[0] || "";
+
 // ------------------------------------------------------------------- Skin
 // -------------------------------------------------------------- Hintergrund
 async function setupBackground() {
@@ -433,10 +451,10 @@ async function openCreate() {
     `<div class="pick" data-slug="${slug}"><span class="ck"></span>${name}</div>`).join("");
   openModal("Neues Profil",
     `<div class="frow"><label>Name</label><input type="text" id="nm" value="NL"></div>
-     <div class="frow"><label>Minecraft</label><select id="mcv">${versions.map((v) => `<option${v === "1.21.4" ? " selected" : ""}>${v}</option>`).join("")}</select></div>
+     <div class="frow"><label>Minecraft</label><select id="mcv">${versions.map((v) => `<option${v === SATURN_VORBEUGUNG ? " selected" : ""}>${v}</option>`).join("")}</select></div>
      <p class="info">Empfohlene Mods (anklicken zum Abwählen):</p>
      <div class="modPick" id="pickBox">${rows}</div>
-     <p class="info">Die Saturn-Mod (Menü, HUD-Editor, Scoreboard) wird für 1.21.4 automatisch mitinstalliert.</p>`,
+     <p class="info">Die Saturn-Mod (Menü, HUD-Editor, Scoreboard) wird für ${saturnVersionen().join(", ")} automatisch mitinstalliert.</p>`,
     "Erstellen", async () => {
       const mods = [...document.querySelectorAll("#pickBox .pick.on")].map((e) => e.dataset.slug);
       const name = $("nm").value.trim() || "NL";

@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.item.ItemStack;
 
@@ -197,13 +198,29 @@ public final class HudRenderer {
 
     // ---------------- Spezial-Elemente ----------------
 
+    /**
+     * Die Ruestung des Spielers, von Fuss nach Kopf.
+     *
+     * Yarn hat zwischen den Versionen umgestellt: frueher lieferte
+     * getArmorItems() die fertige Liste, ab 1.21.5 gibt es diese Methode
+     * nicht mehr. Die einzelnen Slots gibt es dagegen in allen Versionen -
+     * damit ist die Reihenfolge ueberall dieselbe.
+     */
+    private static List<ItemStack> armorOf(ClientPlayerEntity p) {
+        List<ItemStack> out = new ArrayList<>();
+        out.add(p.getEquippedStack(net.minecraft.entity.EquipmentSlot.FEET));
+        out.add(p.getEquippedStack(net.minecraft.entity.EquipmentSlot.LEGS));
+        out.add(p.getEquippedStack(net.minecraft.entity.EquipmentSlot.CHEST));
+        out.add(p.getEquippedStack(net.minecraft.entity.EquipmentSlot.HEAD));
+        return out;
+    }
+
     private static int armorBars(DrawContext ctx, MinecraftClient mc, Module m) {
         if (mc.player == null) return 0;
         boolean percent = m.flag("percent", true);
         int ok = m.color("okColor", 0xFF55FF55);
         int low = m.color("lowColor", 0xFFFF5555);
-        List<ItemStack> gear = new ArrayList<>();
-        for (ItemStack s : mc.player.getArmorItems()) gear.add(s);
+        List<ItemStack> gear = armorOf(mc.player);
         gear.add(mc.player.getEquippedStack(net.minecraft.entity.EquipmentSlot.OFFHAND));
 
         int y = 0;
@@ -233,7 +250,7 @@ public final class HudRenderer {
         if (mc.player == null) return 0;
         boolean percent = m.flag("percent", false);
         int y = 0;
-        for (ItemStack s : mc.player.getArmorItems()) {
+        for (ItemStack s : armorOf(mc.player)) {
             if (s.isEmpty()) {
                 y += 12;
                 continue;
@@ -281,6 +298,13 @@ public final class HudRenderer {
         KeyBinding back = SaturnClient.keyBack;
         KeyBinding right = SaturnClient.keyRight;
         KeyBinding jump = SaturnClient.keyJump;
+
+        // Die Vanilla-Tasten werden erst nach CLIENT_STARTED geholt. Sollte das
+        // Modul doch einmal vorher gezeichnet werden, lieber nichts anzeigen
+        // als mit einem Null-Fehler das ganze HUD zu verlieren.
+        if (forward == null || left == null || back == null || right == null || jump == null) {
+            return 0;
+        }
 
         int sz = 18, gap = 2;
         int w = sz * 3 + gap * 2;

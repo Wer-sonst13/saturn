@@ -36,13 +36,30 @@ public abstract class SaturnScreen extends Screen {
     /** Kopfzeile mit Titel, Untertitel und zurück-Knopf. */
     protected void drawHeader(DrawContext ctx, String title, String subtitle, boolean back) {
         Ui.Theme t = Ui.theme();
-        ctx.fill(0, 0, width, 26, 0xE60B0D12);
-        Ui.outline(ctx, 0, 25, width, 1, Ui.withAlpha(t.accent, 0.35f));
+        int h = 26;
+        ctx.fill(0, 0, width, h, 0xE60B0D12);
+        Ui.outline(ctx, 0, h - 1, width, 1, Ui.withAlpha(t.accent, 0.35f));
         Icons.draw(ctx, "bolt", 8, 9, 1, Ui.withAlpha(t.accent, 0.95f), "LINE");
-        Ui.text(ctx, textRenderer, Ui.up(title), 22, 9, t.text);
-        if (subtitle != null && !subtitle.isEmpty()) {
-            Ui.text(ctx, textRenderer, subtitle, 22 + textRenderer.getWidth(Ui.up(title)) + 8, 10, t.dim);
+
+        int x = 22;
+        String gross = Ui.up(title);
+        int titelBreite = textRenderer.getWidth(gross);
+
+        // "Zurueck" rechts reservieren, damit der Untertitel nicht darunter laeuft
+        int limit = width - 8;
+        if (back) limit = Math.min(limit, width - 54 - 8);
+
+        if (x + titelBreite <= limit) {
+            Ui.text(ctx, textRenderer, gross, x, 9, t.text);
+            x += titelBreite + 8;
         }
+
+        // Untertitel nur zeichnen, wenn er zwischen Titel und "Zurueck" passt
+        if (subtitle != null && !subtitle.isEmpty()
+                && x + textRenderer.getWidth(subtitle) <= limit) {
+            Ui.text(ctx, textRenderer, subtitle, x, 10, t.dim);
+        }
+
         if (back) {
             Ui.text(ctx, textRenderer, "< ZURÜCK", width - 54, 9, t.dim);
         }

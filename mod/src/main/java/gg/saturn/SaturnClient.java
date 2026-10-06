@@ -1,5 +1,6 @@
 package gg.saturn;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
@@ -53,12 +54,19 @@ public class SaturnClient {
         hudToggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.saturn.hudtoggle", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F8, "category.saturn"));
 
-        GameOptions o = MinecraftClient.getInstance().options;
-        keyForward = o.forwardKey;
-        keyLeft = o.leftKey;
-        keyBack = o.backKey;
-        keyRight = o.rightKey;
-        keyJump = o.jumpKey;
+        // `MinecraftClient.options` ist an dieser Stelle noch null: Fabric ruft die
+        // Client-Entrypoints aus dem Konstruktor von MinecraftClient heraus auf
+        // (Hooks.startClient), lange bevor die Optionen angelegt sind. Deshalb
+        // kommen die Vanilla-Tasten erst bei CLIENT_STARTED - dort ist der
+        // Client fertig aufgebaut, aber der erste Tick steht noch aus.
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+            GameOptions o = client.options;
+            keyForward = o.forwardKey;
+            keyLeft = o.leftKey;
+            keyBack = o.backKey;
+            keyRight = o.rightKey;
+            keyJump = o.jumpKey;
+        });
 
         HudRenderCallback.EVENT.register((ctx, tick) -> HudRenderer.renderAll(ctx, MinecraftClient.getInstance()));
 

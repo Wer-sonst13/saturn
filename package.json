@@ -41,7 +41,7 @@
     ],
     "extraResources": [
       {
-        "from": "resources",
+        "from": "resources/saturn-*.jar",
         "to": "."
       }
     ],

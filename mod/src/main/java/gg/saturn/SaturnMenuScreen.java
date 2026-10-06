@@ -13,8 +13,10 @@ import java.util.List;
  */
 public class SaturnMenuScreen extends SaturnScreen {
 
-    private static final int CARD_W = 190;
-    private static final int CARD_H = 44;
+    // Mindestbreite einer Karte. Alles darunter wird unlesbar, dann lieber
+    // eine Spalte mit breiteren Karten als drei zu schmale.
+    private static final int CARD_W = 150;
+    private static final int CARD_H = 46;
     private static final int GAP = 6;
 
     private String category = "ALL";
@@ -114,13 +116,17 @@ public class SaturnMenuScreen extends SaturnScreen {
             Icons.draw(ctx, m.icon, x + 8, yy + 8, 2, m.enabled ? t.accent : Ui.withAlpha(t.dim, 0.85f), style);
 
             int tx = x + 8 + Icons.SIZE * 2 + 8;
-            int tw = cw - (tx - x) - 10;
+            // Rechts bleibt Platz fuer den Schalter, sonst laeuft die
+            // Beschreibung mitten in ihn hinein.
+            int sw = 34;
+            int tw = cw - (tx - x) - 10 - (sw + 8);
 
             // NEW-Badge
             if (m.isNew) {
                 Ui.text(ctx, textRenderer, "NEW", x + cw - 26, yy + 5, 0xFFFFD24A);
                 tw -= 26;
             }
+            if (tw < 24) tw = 24;
 
             Ui.text(ctx, textRenderer, Ui.up(m.name), tx, yy + 7,
                     m.enabled ? t.text : Ui.withAlpha(t.dim, 0.95f));
@@ -128,14 +134,14 @@ public class SaturnMenuScreen extends SaturnScreen {
             List<String> lines = Ui.wrap(textRenderer, m.desc, tw, 2);
             int ly = yy + 18;
             for (String l : lines) {
-                if (ly > yy + CARD_H - 4) break;
+                if (ly > yy + CARD_H - 6) break;
                 Ui.text(ctx, textRenderer, l, tx, ly, Ui.withAlpha(t.dim, 0.85f));
                 ly += 9;
             }
 
-            // Schalter rechts
-            int sw = 34, sh = 14;
-            Ui.toggle(ctx, x + cw - sw - 7, yy + CARD_H - sh - 7, sw, sh, m.enabled, t, hover);
+            // Schalter rechts unten
+            int sh = 14;
+            Ui.toggle(ctx, x + cw - sw - 7, yy + CARD_H - sh - 6, sw, sh, m.enabled, t, hover);
         }
     }
 
@@ -166,17 +172,45 @@ public class SaturnMenuScreen extends SaturnScreen {
 
     private final int[] searchHit = new int[4];
 
+    /**
+     * Fusszeile. Die drei Angaben werden von links nach rechts aneinander
+     * gereiht statt an festen Stellen hingesetzt - bei kleiner Fensterbreite
+     * (Minecraft skaliert je nach Aufloesung bis Faktor 4) laufen sie sonst
+     * uebereinander.
+     */
     private void drawFooter(DrawContext ctx, Ui.Theme t, int colW) {
-        int y = height - 24;
-        Ui.fill(ctx, 0, y, width, 24, 0xE60B0D12);
+        int y = height - 20;
+        Ui.fill(ctx, 0, y, width, 20, 0xE60B0D12);
         Ui.outline(ctx, 0, y, width, 1, Ui.withAlpha(t.accent, 0.35f));
+
         int on = 0;
         for (Module m : Module.all()) if (m.enabled) on++;
-        Ui.text(ctx, textRenderer, on + " VON " + Module.all().size() + " MODULEN AKTIV", 8, y + 8, t.dim);
-        Ui.textCentered(ctx, textRenderer, "PROFIL: " + Ui.up(ConfigStore.activeProfile()), width / 2, y + 8, t.dim);
 
-        String h = "F6 HUD-EDITOR  ·  F7 CHAT UTILS  ·  RECHTS-SHIFT MENÜ";
-        Ui.text(ctx, textRenderer, h, width - 8 - textRenderer.getWidth(h), y + 8, Ui.withAlpha(t.dim, 0.8f));
+        int ty = y + 6;
+        int x = 8;
+        int limit = width - 8;
+
+        x = drawFooterItem(ctx, x, ty, limit, on + " VON " + Module.all().size() + " MODULEN AKTIV", t.dim);
+        x = drawFooterItem(ctx, x, ty, limit, "PROFIL: " + Ui.up(ConfigStore.activeProfile()), t.dim);
+
+        // Die Tastenkuerzel erst zeichnen, wenn sie noch frei Platz haben
+        String h = "F6 HUD  ·  F7 CHAT  ·  R-SHIFT MENÜ";
+        int hw = textRenderer.getWidth(h);
+        if (hw <= limit - x - 6) {
+            Ui.text(ctx, textRenderer, h, limit - hw, ty, Ui.withAlpha(t.dim, 0.8f));
+        }
+    }
+
+    /**
+     * Zeichnet einen Fusszeilentext ab {@code x} und gibt die x-Position danach
+     * zurueck. Passt der Text nicht mehr bis {@code limit}, wird er
+     * weggelassen und x bleibt stehen - so kann nichts ueberlappen.
+     */
+    private int drawFooterItem(DrawContext ctx, int x, int ty, int limit, String s, int color) {
+        int w = textRenderer.getWidth(s);
+        if (x + w > limit) return x;
+        Ui.text(ctx, textRenderer, s, x, ty, color);
+        return x + w + 10;
     }
 
     private static String iconStyle() {

@@ -36,19 +36,70 @@ const RUNNING = new Map();
 const PLAYTIME = new Map();
 const MAX_LOG = 3000;
 
-const modJar = () => {
-  const j = app.isPackaged
-    ? path.join(process.resourcesPath, "saturn-mod.jar")
-    : path.join(__dirname, "resources", "saturn-mod.jar");
-  return fs.existsSync(j) ? j : null;
+// ------------------------------------------------------------------- Mod
+
+/**
+ * Ordner, in dem die Mod-Jars liegen.
+ *
+ * Beim Entwickeln ist das resources\ neben dem Code, im installierten
+ * Launcher der resources-Ordner neben der app.asar.
+ */
+const modDir = () =>
+  app.isPackaged
+    ? path.join(process.resourcesPath)
+    : path.join(__dirname, "resources");
+
+/**
+ * Die Minecraft-Versionen, fuer die der Launcher eine Mod-Jar mitbringt.
+ *
+ * Gelesen aus den Dateinamen resources\saturn-<version>.jar - das stimmt
+ * sowohl beim Entwickeln als auch im installierten Programm, weil dort
+ * dieselben Dateien neben der app.asar liegen. mod\versions.json waere
+ * nur beim Entwickeln vorhanden.
+ */
+const supportedMc = () => {
+  const d = modDir();
+  if (!fs.existsSync(d)) return [];
+  return fs
+    .readdirSync(d)
+    .map((f) => /^saturn-(.+)\.jar$/.exec(f))
+    .filter(Boolean)
+    .map((m) => m[1])
+    .filter((v) => /^\d+\.\d+(\.\d+)?$/.test(v))
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 };
 
+/**
+ * Die zur Minecraft-Version passende Mod-Jar.
+ *
+ * Es gibt eine Jar je Minecraft-Version, weil Yarn zwischen den Versionen
+ * umbenennt: eine Jar, die fuer 1.21.1 gebaut ist, findet auf 1.21.5 nichts
+ * und umgekehrt. Fehlt die passende, gibt es null - die Instanz startet
+ * dann ganz normal, nur eben ohne Menue.
+ */
+const modJar = (mc) => {
+  const d = modDir();
+  if (mc) {
+    const j = path.join(d, `saturn-${mc}.jar`);
+    if (fs.existsSync(j)) return j;
+  }
+  return null;
+};
+
+/** Legt die Mod in die Instanz, wenn es eine passende Jar gibt. */
 const syncMod = (inst) => {
-  const j = modJar();
-  if (!j || inst.mc !== "1.21.4") return;
+  const j = modJar(inst.mc);
+  if (!j) return false;
   const d = path.join(INST, inst.id, "mods");
   fs.mkdirSync(d, { recursive: true });
-  fs.copyFileSync(j, path.join(d, "saturn.jar"));
+  const ziel = path.join(d, "saturn.jar");
+  // Nur kopieren, wenn sie sich geaendert hat - sonst schreibt Fabric die
+  // ganze Datei bei jedem Start neu.
+  if (!fs.existsSync(ziel) || fs.statSync(j).size !== fs.statSync(ziel).size
+      || fs.statSync(j).mtimeMs > fs.statSync(ziel).mtimeMs) {
+    fs.copyFileSync(j, ziel);
+  }
+  return true;
 };
 
 const jget = async (u) => (await fetch(u, { headers: UA })).json();
@@ -145,8 +196,12 @@ app.whenReady().then(() => {
   // Versionsnummer fuer die Fusszeile (renderer.js liest window.saturnVersion).
   // Muss nach dem Laden gesetzt werden: erst dann existiert das Fenster-DOM.
   win.webContents.on("did-finish-load", () => {
+    // Version fuer die Fusszeile und die Liste der Minecraft-Versionen,
+    // fuer die es die Mod gibt. Beides erst nach dem Laden setzen: vorher
+    // gibt es das Fenster-DOM noch nicht.
     win.webContents.executeJavaScript(
-      `window.saturnVersion = ${JSON.stringify(app.getVersion())};`
+      `window.saturnVersion = ${JSON.stringify(app.getVersion())};` +
+      `window.__saturnVersionen = ${JSON.stringify(supportedMc())};`
     ).catch(() => {});
   });
   // Kein zweites Fenster: die Min-/Schliessen-Knoepfe der Seite sind nur Deko,
@@ -285,6 +340,27 @@ ipcMain.handle("account", () => restoreAccount());
 
 // ---------------------------------------------------------------- Starten
 
+/**
+ * RAM-Wert in die Form bringen, die die JVM erwartet.
+ *
+ * Kommt aus der Oberfläche "4", aus einem gespeicherten Wert aber auch mal
+ * "4G" oder "4096M". Einfach die Einheit anzuhängen ergäbe "-Xmx4GG", und
+ * Minecraft bricht dann mit einer Java-Fehlermeldung ab, die man dem Spieler
+ * nicht zeigen kann. Deshalb wird alles auf Megabyte gerechnet.
+ */
+function ramToXmx(ram) {
+  const s = String(ram ?? "").trim().toUpperCase();
+  const m = s.match(/^(\d+(?:[.,]\d+)?)\s*([KMG]?)$/);
+  if (!m) return "4096M";
+  const n = parseFloat(m[1].replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0) return "4096M";
+  const faktor = { K: 1 / 1024, M: 1, G: 1024, "": 1024 }[m[2]];
+  const mb = Math.round(n * faktor);
+  // 512 MB bis 64 GB - darunter startet Minecraft nicht, darueber waere der
+  // Rechner blockiert
+  return Math.min(Math.max(mb, 512), 65536) + "M";
+}
+
 ipcMain.handle("launch", async (_, { id, ram }) => {
   if (!account) throw new Error("Bitte zuerst mit Microsoft anmelden.");
   if (RUNNING.has(id)) throw new Error("Diese Instanz läuft bereits.");
@@ -310,7 +386,7 @@ ipcMain.handle("launch", async (_, { id, ram }) => {
       authorization: account.mclc(),
       root: ROOT,
       version: { number: inst.mc, type: "release", custom: inst.versionId },
-      memory: { max: (ram || 4) + "G", min: "1G" },
+      memory: { max: ramToXmx(ram), min: "1G" },
       overrides: { gameDirectory: path.join(INST, inst.id) },
     });
   } catch (e) {

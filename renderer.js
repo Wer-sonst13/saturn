@@ -1,4 +1,5 @@
 const { ipcRenderer: ipc } = require("electron");
+const { SkinView } = require("./skin.js");
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
@@ -9,6 +10,82 @@ let hist = ["play"], hi = 0;
 let contentType = "mod", offset = 0, total = 0, picked = new Set();
 let modFiles = [], worlds = [], shots = [], logTarget = null, logLines = [];
 let timer = null;
+let skinView = null, skinAcc = null, lastFrame = 0;
+
+// ------------------------------------------------------------------- Skin
+async function setupSkin() {
+  const canvas = $("skin");
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = $("skinStage").getBoundingClientRect();
+  canvas.width = Math.max(1, Math.round(rect.width * dpr));
+  canvas.height = Math.max(1, Math.round(rect.height * dpr));
+  canvas.style.width = rect.width + "px";
+  canvas.style.height = rect.height + "px";
+
+  skinView = new SkinView(canvas);
+
+  // Ziehen zum Drehen
+  const stage = $("skinStage");
+  stage.addEventListener("pointerdown", (e) => {
+    stage.setPointerCapture(e.pointerId);
+    stage.classList.add("touched");
+    skinView.startDrag(e);
+  });
+  stage.addEventListener("pointermove", (e) => skinView.drag(e));
+  const stop = (e) => {
+    skinView.endDrag();
+    try { stage.releasePointerCapture(e.pointerId); } catch {}
+  };
+  stage.addEventListener("pointerup", stop);
+  stage.addEventListener("pointercancel", stop);
+
+  // Klick ohne Ziehen -> zurück auf die Vorderansicht
+  stage.addEventListener("click", () => {
+    if (skinView.dragDistance < 6) skinView.yaw = 0;
+  });
+
+  await loadSkin();
+  requestAnimationFrame(loop);
+}
+
+async function loadSkin() {
+  let acc = null;
+  try { acc = await ipc.invoke("account"); } catch {}
+  skinAcc = acc;
+  if (!acc) {
+    $("nick").textContent = "Nicht angemeldet";
+    $("hudFace").src = "https://mc-heads.net/avatar/MHF_Steve/40";
+    skinView.img = null;
+    skinView.render();
+    return;
+  }
+  $("nick").textContent = acc.name;
+  $("hudFace").src = "https://mc-heads.net/avatar/" + acc.uuid + "/40";
+  const skin = acc.skin || {};
+  const ok = await skinView.load(skin.url, skin.slim, acc.uuid);
+  if (!ok) {
+    toast("Skin konnte nicht geladen werden", "err");
+  }
+  skinView.render();
+}
+
+function toggleSpin() {
+  const t = $("spinTog");
+  t.classList.toggle("on");
+  if (skinView) skinView.autoSpin = t.classList.contains("on");
+}
+
+function loop(t) {
+  const dt = lastFrame ? Math.min(0.1, (t - lastFrame) / 1000) : 0;
+  lastFrame = t;
+  if (skinView && $("play").classList.contains("on")) {
+    const before = skinView.yaw;
+    skinView.tick(dt);
+    if (skinView.autoSpin && skinView.yaw !== before) skinView.render();
+  }
+  requestAnimationFrame(loop);
+}
 
 // ---------------------------------------------------------------- Vorschläge
 const SUGGESTED = [
@@ -154,9 +231,8 @@ function pick(id) {
 }
 function updatePlay() {
   const c = cur();
-  $("curProfile").textContent = c ? `${c.name} · ${c.mc} · ${fmtDur(c.playtime)} gespielt` : "Kein Profil gewählt";
   const nMods = c ? (c.files || c.installed || []).length : 0;
-  $("playSub").textContent = c ? `${c.name}  ·  ${c.mc}  ·  ${nMods} Mods` : "Keine Instanz";
+  $("playSub").textContent = c ? `${c.mc}  ·  ${nMods} Mods` : "Keine Instanz";
   $("instCount").textContent = list.length === 1 ? "1 Instanz" : `${list.length} Instanzen`;
   const p = $("playList");
   p.innerHTML = list.map((i) => `
@@ -334,6 +410,7 @@ async function delProfile(id) {
 async function launch() {
   if (!sel) { toast("Bitte zuerst ein Profil anlegen", "err"); return nav("prof"); }
   const b = $("go");
+  if (!b) { toast("Start-Knopf nicht gefunden - Seite bitte neu laden", "err"); return; }
   b.disabled = true;
   $("progress").classList.add("on");
   $("progressText").textContent = "Starte…";
@@ -343,8 +420,9 @@ async function launch() {
   } catch (e) {
     toast(e.message, "err");
     $("progress").classList.remove("on");
+    b.disabled = false;
+    return;
   }
-  b.disabled = false;
   setTimeout(() => { b.disabled = false; $("progress").classList.remove("on"); }, 60000);
   await load();
 }
@@ -353,9 +431,9 @@ async function login() {
   try {
     const a = await ipc.invoke("login");
     $("accName").textContent = a.name;
-    $("nick").textContent = a.name;
-    $("avatar").src = "https://mc-heads.net/avatar/" + a.uuid;
     toast("Angemeldet als " + a.name, "ok");
+    await loadSkin();
+    $("accBtn").onclick = () => logout();
   } catch (e) { toast("Login: " + e.message, "err"); }
 }
 
@@ -368,7 +446,6 @@ document.querySelectorAll(".tab").forEach((t) => {
     loadContent(true);
   };
 });
-$("contentType");
 
 function fillCats() {
   const list2 = CAT_FOR[contentType] || CAT_FOR.mod;
@@ -552,13 +629,20 @@ function applySettings() {
   applySettings();
 
   versions = await ipc.invoke("versions");
-  const a = await ipc.invoke("hasLogin");
-  if (a) {
-    $("accName").textContent = a.name;
-    $("nick").textContent = a.name;
-    $("avatar").src = "https://mc-heads.net/avatar/" + a.uuid;
-  }
+
+  await setupSkin();
+
+  const a = skinAcc;
+  if (a) $("accName").textContent = a.name;
+  $("accBtn").onclick = a ? () => logout() : () => login();
+
   await load();
   fillCats();
   setInterval(refreshStatus, 2000);
 })();
+
+async function logout() {
+  await ipc.invoke("logout");
+  toast("Abgemeldet");
+  location.reload();
+}

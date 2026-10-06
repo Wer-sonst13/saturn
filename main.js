@@ -46,6 +46,27 @@ const writeSettings = (d) => {
   fs.writeFileSync(SETTINGS, JSON.stringify(d, null, 2));
 };
 
+/** Microsoft-Anmeldung merken, damit sie einen Neustart überlebt. */
+const saveAccount = (data) => {
+  const s = readSettings();
+  s.account = data;
+  writeSettings(s);
+};
+const savedAccount = () => readSettings().account || null;
+const clearAccount = () => {
+  const s = readSettings();
+  delete s.account;
+  writeSettings(s);
+  account = null;
+};
+
+/** Die eigentliche Skin-PNG des angemeldeten Accounts. */
+const skinUrl = () => {
+  const p = account && account.profile;
+  const skin = p && p.skins && p.skins.find((s) => s.state === "ACTIVE");
+  return skin ? { url: skin.url, slim: skin.variant === "SLIM" } : null;
+};
+
 const log = (m) => win && win.webContents.send("log", m);
 const perInstance = (id, line) => {
   const r = RUNNING.get(id);
@@ -170,14 +191,73 @@ ipcMain.handle("delete", (_, id) => {
 
 // -------------------------------------------------------------- Anmelden
 
+/** Alles, was die Oberfläche über den Account wissen muss. */
+function accountInfo() {
+  const p = account.profile;
+  return { name: p.name, uuid: p.id, skin: skinUrl() };
+}
+
 ipcMain.handle("login", async () => {
   const xbox = await new Auth("select_account").launch("electron");
   const mc = await xbox.getMinecraft();
   account = mc;
-  return { name: mc.profile.name, uuid: mc.profile.id };
+  // Refresh-Token merken, damit die Anmeldung einen Neustart überlebt
+  try {
+    saveAccount({
+      refresh: xbox.save(),
+      name: mc.profile.name,
+      uuid: mc.profile.id,
+      skin: skinUrl(),
+    });
+  } catch (e) {
+    log(`- Anmeldung nicht gespeichert: ${e.message}`);
+  }
+  return accountInfo();
 });
 
-ipcMain.handle("hasLogin", () => (account ? { name: account.profile.name, uuid: account.profile.id } : null));
+/** Stellt eine gespeicherte Anmeldung beim Start wieder her. */
+ipcMain.handle("hasLogin", async () => {
+  if (account) return accountInfo();
+  const saved = savedAccount();
+  if (!saved || !saved.refresh) return null;
+  try {
+    const auth = new Auth("select_account");
+    const xbox = await auth.refresh(saved.refresh);
+    const mc = await xbox.getMinecraft();
+    account = mc;
+    saveAccount({
+      refresh: xbox.save(),
+      name: mc.profile.name,
+      uuid: mc.profile.id,
+      skin: skinUrl(),
+    });
+    return accountInfo();
+  } catch (e) {
+    log(`- gespeicherte Anmeldung nicht gültig: ${e.message}`);
+    clearAccount();
+    return null;
+  }
+});
+
+ipcMain.handle("logout", () => {
+  clearAccount();
+  return true;
+});
+
+/** Name, Avatar und Skin des angemeldeten Accounts. */
+ipcMain.handle("account", async () => {
+  if (!account && savedAccount()) {
+    try {
+      const auth = new Auth("select_account");
+      const xbox = await auth.refresh(savedAccount().refresh);
+      account = await xbox.getMinecraft();
+    } catch {
+      clearAccount();
+      return null;
+    }
+  }
+  return account ? accountInfo() : null;
+});
 
 // ---------------------------------------------------------------- Starten
 

@@ -136,20 +136,59 @@ hr { border: none; border-top: 1px solid var(--bd); margin: 20px 0; }
   gap: 14px; position: relative;
   background: radial-gradient(circle at 50% 40%, var(--ac-soft), transparent 62%);
 }
-.avatarWrap {
-  width: 130px; height: 130px; border-radius: 50%;
+/* ------------------------------------------------------------- Startseite */
+.center {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; position: relative;
+  background: radial-gradient(circle at 50% 42%, var(--ac-soft), transparent 62%);
+}
+.spinBox {
+  position: absolute; top: 18px; right: 24px;
+  display: flex; align-items: center; gap: 10px;
+}
+.spinLbl { font-size: 13px; color: var(--tx); }
+.spinBox .tog { transform: scale(1.15); }
+
+.hello {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 2px;
+}
+.hudFace {
+  width: 40px; height: 40px; border-radius: 6px;
+  image-rendering: pixelated; background: var(--pn2);
+}
+.nick {
+  font-size: 30px; font-weight: 700; letter-spacing: .5px;
+  font-family: "Silkscreen", monospace;
+  text-transform: uppercase;
+  text-shadow: 0 3px 14px #000a;
+}
+
+.skinStage {
+  position: relative;
+  width: 300px; height: 330px;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(160deg, var(--ac), #2b1d7a);
-  box-shadow: 0 18px 40px #000a, 0 0 40px var(--ac-soft);
+  cursor: grab;
+  touch-action: none;
 }
-.avatar {
-  width: 74px; height: 74px; border-radius: 8px; image-rendering: pixelated;
-  animation: bob 3.4s ease-in-out infinite;
+.skinStage:active { cursor: grabbing; }
+.skinStage canvas { image-rendering: pixelated; }
+.skinHint {
+  position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; color: var(--tx-dim); opacity: .55;
+  pointer-events: none; transition: opacity .3s;
 }
-@keyframes bob { 50% { transform: translateY(-6px); } }
-.hello { text-align: center; }
-.nick { font-size: 24px; font-weight: 600; }
-.profileName { font-size: 12px; color: var(--tx-dim); }
+.skinStage.touched .skinHint { opacity: 0; }
+
+/* Startfläche unter dem Modell, damit das Model nicht "schwebt" */
+.skinStage::after {
+  content: ""; position: absolute; bottom: 34px;
+  width: 190px; height: 26px; border-radius: 50%;
+  background: radial-gradient(ellipse, #0009, transparent 70%);
+  pointer-events: none;
+}
+
+.launchRow { display: flex; gap: 8px; align-items: stretch; margin-top: 4px; }
 
 #progress {
   position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
@@ -163,8 +202,8 @@ hr { border: none; border-top: 1px solid var(--bd); margin: 20px 0; }
 
 .launchRow { display: flex; gap: 8px; align-items: stretch; }
 button.play {
-  display: flex; align-items: center; gap: 12px;
-  min-width: 300px; padding: 16px 24px;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  min-width: 320px; padding: 16px 24px;
   background: linear-gradient(180deg, var(--ac), #5b3fd6);
   color: #fff; border-radius: 16px;
   box-shadow: 0 6px 0 #2f1f78, 0 12px 30px #0008;
@@ -174,8 +213,11 @@ button.play:hover { transform: translateY(-2px); box-shadow: 0 8px 0 #2f1f78, 0 
 button.play:active { transform: translateY(4px); box-shadow: 0 2px 0 #2f1f78; }
 button.play:disabled { opacity: .5; pointer-events: none; }
 button.play .tri { font-size: 20px; }
-button.play .lbl { text-align: left; font-weight: 700; letter-spacing: .6px; }
-button.play small { display: block; font-weight: 400; font-size: 11px; opacity: .8; letter-spacing: 0; }
+button.play .lbl { text-align: center; font-weight: 700; letter-spacing: .6px; font-family: "Silkscreen", monospace; }
+button.play small {
+  display: block; font-weight: 400; font-size: 11px; opacity: .85;
+  letter-spacing: 0; font-family: "Inter", sans-serif; margin-top: 2px;
+}
 button.play.small { min-width: 150px; padding: 12px 18px; }
 button.icon {
   width: 46px; border-radius: 14px; font-size: 16px;

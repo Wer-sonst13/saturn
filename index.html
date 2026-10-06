@@ -32,33 +32,42 @@
     <section class="page on" id="play">
       <div class="center">
         <div id="progress"><div id="progressBar"></div><span id="progressText"></span></div>
-        <div class="avatarWrap">
-          <img class="avatar" id="avatar" src="https://mc-heads.net/avatar/MHF_Steve">
+
+        <div class="spinBox">
+          <span class="px spinLbl">Skin-Animation</span>
+          <div class="tog on" id="spinTog" onclick="toggleSpin()"></div>
         </div>
+
         <div class="hello">
-          <div class="nick" id="nick">Steve</div>
-          <div class="profileName" id="curProfile">Kein Profil gewählt</div>
+          <img class="hudFace" id="hudFace" src="https://mc-heads.net/avatar/MHF_Steve/40">
+          <span class="nick" id="nick">Steve</span>
         </div>
+
+        <div class="skinStage" id="skinStage">
+          <canvas id="skin"></canvas>
+          <div class="skinHint" id="skinHint">ziehen zum Drehen</div>
+        </div>
+
         <div class="launchRow">
-          <button class="play" onclick="launch()">
-            <span class="tri">▶</span>
-            <span class="lbl">SPIELEN<small id="playSub">Keine Instanz</small></span>
+          <button class="play" id="go" onclick="launch()">
+            <span class="lbl">LAUNCH<small id="playSub">Keine Instanz</small></span>
           </button>
-          <button class="icon" onclick="nav('prof')" title="Profil wählen">▾</button>
+          <button class="icon" id="profBtn" onclick="nav('prof')" title="Profile">&#9662;</button>
         </div>
+
         <div class="quick">
-          <button class="ghost" onclick="nav('mods')">▦ Mods &amp; Packs</button>
-          <button class="ghost" onclick="nav('log')">▤ Logs</button>
-          <button class="ghost" onclick="nav('set')">⚙ Einstellungen</button>
+          <button class="ghost" onclick="nav('mods')">&#9638; Mods &amp; Packs</button>
+          <button class="ghost" onclick="nav('log')">&#9646; Logs</button>
+          <button class="ghost" onclick="nav('set')">&#9881; Einstellungen</button>
         </div>
       </div>
       <aside class="side">
-        <h3 class="px">Instanzen</h3>
-        <div id="playList" class="miniList"></div>
-        <h3 class="px">Zuletzt geloggt</h3>
-        <div class="news n1">Willkommen bei NoLimite</div>
+        <h3 class="px">Neuigkeiten</h3>
+        <div class="news n1">NoLimite 1.0 ist da</div>
         <div class="news n2" onclick="nav('mods')">Mods, Packs &amp; Shader</div>
         <div class="news n3" onclick="nav('prof')">Profile mit Spielzeit</div>
+        <h3 class="px" style="margin-top:20px">Instanzen</h3>
+        <div id="playList" class="miniList"></div>
       </aside>
     </section>
 

@@ -28,18 +28,22 @@ public final class ScoreboardRenderer {
      *
      * Frueher lagen Name, Zahl, Text und Farbe in vier parallelen Listen und
      * wurden ueber den Index zugeordnet. Sobald eine davon nicht passte, kam
-     * mitten im Zeichnen ein Fehler heraus - der Hintergrund war schon
-     * weg, der Text nicht, und weil dabei auch ms.pop() uebersprungen wurde,
-     * saessen danach alle folgenden Elemente an versetzter Stelle.
+     * mitten im Zeichnen ein Fehler heraus.
      *
-     * Deshalb gehoeren die vier Angaben zu einer Zeile zusammen.
+     * WICHTIG: der Text kommt aus entry.owner(), nicht aus entry.name().
+     * name() lieferte bei diesem Server leeren Text - es erschienen nur die
+     * gruenen Zahlen, aber keine einzige Beschriftung.
+     *
+     * Ausserdem kann ein Eintrag mehrere Zeilen enthalten (Umbruch im Text).
+     * Die stehen als Umbruchzeichen im Namen und muessen von Hand
+     * untereinander gezeichnet werden - drawText ignoriert sie sonst still.
      */
     private static final class Zeile {
-        final Text text;
+        final String[] teile;
         final int farbe;
         final int score;
-        Zeile(Text text, int farbe, int score) {
-            this.text = text;
+        Zeile(String[] teile, int farbe, int score) {
+            this.teile = teile;
             this.farbe = farbe;
             this.score = score;
         }
@@ -75,11 +79,8 @@ public final class ScoreboardRenderer {
                 if (eintrag == null || eintrag.hidden()) continue;
                 String name = eintrag.owner();
                 if (name == null || name.isEmpty()) continue;
-                // Nur den Namen nehmen: entry.display() enthaelt fuer die
-                // Seitenleiste schon die Zahl, die wir zusaetzlich zeichnen -
-                // sonst stand jede Zeile doppelt da.
-                Text t = eintrag.name();
-                zeilen.add(new Zeile(t == null ? Text.literal(name) : t,
+                // Den Namen des Servers nehmen und an Umbruechen teilen.
+                zeilen.add(new Zeile(name.split("\n", -1),
                         teamFarbe(board, name, 0xFFFFFFFF), eintrag.value()));
             }
         } catch (Throwable t) {
@@ -91,10 +92,14 @@ public final class ScoreboardRenderer {
         }
         if (zeilen.isEmpty()) return;
 
-        // absteigend nach Punktzahl, bei Gleichstand stabil nach Name
+        // absteigend nach Punktzahl, bei Gleichstand stabil nach Namen.
+        //
+        // Der Server benutzt die Punktzahl als Reihenfolge (10, 9, 8 ...),
+        // deshalb wird danach sortiert. Sonst kaemen die Zeilen in der
+        // Reihenfolge des Empfangs statt in der des Servers.
         List<Zeile> sortiert = new ArrayList<>(zeilen);
         sortiert.sort(Comparator.comparingInt((Zeile z) -> -z.score)
-                .thenComparing(z -> z.text.getString()));
+                .thenComparing(z -> z.teile[0]));
 
         // Titel als Text behalten: getString() liefert die §-Codes roh mit,
         // und die werden seit 1.21 nicht mehr als Formatierung erkannt.
@@ -108,15 +113,16 @@ public final class ScoreboardRenderer {
 
         int contentW = tr.getWidth(titel);
         int maxNumW = 0;
+        int zeilenH = 0;
         for (Zeile z : sortiert) {
-            contentW = Math.max(contentW, tr.getWidth(z.text));
+            for (String teil : z.teile) contentW = Math.max(contentW, tr.getWidth(teil));
+            zeilenH += z.teile.length * rowH;
             maxNumW = Math.max(maxNumW, tr.getWidth(String.valueOf(z.score)));
         }
         if (numbers) contentW += maxNumW + 4;
 
         int w = forcedW > 0 ? forcedW : contentW + pad * 2;
-        int bodyH = sortiert.size() * rowH;
-        int h = forcedH > 0 ? forcedH : titleH + bodyH + pad;
+        int h = forcedH > 0 ? forcedH : titleH + zeilenH + pad;
 
         // rechts verankert, vertikal mittig
         int right = scaledWidth + (int) mod.x;
@@ -152,12 +158,18 @@ public final class ScoreboardRenderer {
             y += titleH;
 
             for (Zeile z : sortiert) {
-                ctx.drawText(tr, z.text, pad, y, z.farbe, shadow);
-                if (numbers) {
-                    String num = String.valueOf(z.score);
-                    ctx.drawText(tr, num, w - pad - tr.getWidth(num), y, 0xFF55FF55, shadow);
+                // Jeden Teil einzeln zeichnen: ein Eintrag kann mehrere Zeilen
+                // haben, und drawText bricht nicht um.
+                int numBreite = numbers ? tr.getWidth(String.valueOf(z.score)) : 0;
+                for (String teil : z.teile) {
+                    ctx.drawText(tr, teil, pad, y, z.farbe, shadow);
+                    if (numbers) {
+                        // Die Zahl sitzt an der oberen Zeile des Eintrags.
+                        ctx.drawText(tr, String.valueOf(z.score),
+                                w - pad - numBreite, y, 0xFF55FF55, shadow);
+                    }
+                    y += rowH;
                 }
-                y += rowH;
             }
         } finally {
             // pop() gehoert in ein finally: sonst blieb die Matrix verschoben,

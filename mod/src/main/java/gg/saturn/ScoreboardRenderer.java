@@ -5,6 +5,7 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.scoreboard.ScoreboardEntry;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.scoreboard.Team;
 import net.minecraft.text.Text;
@@ -21,6 +22,28 @@ import java.util.List;
 public final class ScoreboardRenderer {
 
     private ScoreboardRenderer() {}
+
+    /**
+     * Eine Zeile des Scoreboards.
+     *
+     * Frueher lagen Name, Zahl, Text und Farbe in vier parallelen Listen und
+     * wurden ueber den Index zugeordnet. Sobald eine davon nicht passte, kam
+     * mitten im Zeichnen ein Fehler heraus - der Hintergrund war schon
+     * weg, der Text nicht, und weil dabei auch ms.pop() uebersprungen wurde,
+     * saessen danach alle folgenden Elemente an versetzter Stelle.
+     *
+     * Deshalb gehoeren die vier Angaben zu einer Zeile zusammen.
+     */
+    private static final class Zeile {
+        final Text text;
+        final int farbe;
+        final int score;
+        Zeile(Text text, int farbe, int score) {
+            this.text = text;
+            this.farbe = farbe;
+            this.score = score;
+        }
+    }
 
     public static void render(DrawContext ctx, ScoreboardObjective objective, int scaledWidth) {
         Module mod = Module.get("scoreboard");
@@ -44,58 +67,51 @@ public final class ScoreboardRenderer {
         String bgKind = mod.choice("background", "VANILLA");
         int customBg = mod.color("bgColor", 0xB0000000);
 
-        // Namen sammeln, Punktzahl holen, absteigend sortieren
-        List<String> names = new ArrayList<>();
-        List<Integer> scores = new ArrayList<>();
-        // Anzeigetext und Farbe getrennt halten.
-        //
-        // entry.display() liefert fuer die Seitenleiste bereits den FERTIGEN
-        // Eintrag inklusive Zahl. Wir zeichnen die Zahl aber noch selbst in
-        // Grün dazu - dadurch stand jede Zeile doppelt da ("Kills: 0" zweimal).
-        // Also nur den Namen nehmen und die Team-Farbe selbst setzen.
-        List<Text> texte = new ArrayList<>();
-        List<Integer> farben = new ArrayList<>();
-        // ScoreboardEntry ist seit 1.21 ein Record mit owner() und value() und
-        // implementiert KEIN ScoreHolder. Die alte Pruefung
-        // "instanceof ScoreHolder" traf deshalb nie zu, die Liste blieb leer
-        // und es wurde nie etwas gezeichnet - das Modul sah aus, als hinge es
-        // nicht.
-        for (net.minecraft.scoreboard.ScoreboardEntry eintrag : board.getScoreboardEntries(objective)) {
-            if (eintrag == null || eintrag.hidden()) continue;
-            String name = eintrag.owner();
-            if (name == null || name.isEmpty()) continue;
-            names.add(name);
-            scores.add(eintrag.value());
-            Text t = eintrag.name();
-            texte.add(t == null ? Text.literal(name) : t);
-            farben.add(teamFarbe(board, name, 0xFFFFFFFF));
+        // Zeilen sammeln. ScoreboardEntry ist seit 1.21 ein Record mit owner()
+        // und value() und implementiert KEIN ScoreHolder.
+        List<Zeile> zeilen = new ArrayList<>();
+        try {
+            for (ScoreboardEntry eintrag : board.getScoreboardEntries(objective)) {
+                if (eintrag == null || eintrag.hidden()) continue;
+                String name = eintrag.owner();
+                if (name == null || name.isEmpty()) continue;
+                // Nur den Namen nehmen: entry.display() enthaelt fuer die
+                // Seitenleiste schon die Zahl, die wir zusaetzlich zeichnen -
+                // sonst stand jede Zeile doppelt da.
+                Text t = eintrag.name();
+                zeilen.add(new Zeile(t == null ? Text.literal(name) : t,
+                        teamFarbe(board, name, 0xFFFFFFFF), eintrag.value()));
+            }
+        } catch (Throwable t) {
+            return;   // lieber nichts als halb gezeichnet
         }
-        if (names.isEmpty()) return;
+        if (zeilen.isEmpty()) return;
 
-        List<Integer> order = new ArrayList<>();
-        for (int i = 0; i < names.size(); i++) order.add(i);
-        order.sort(Comparator.comparingInt((Integer i) -> -scores.get(i)));
+        // absteigend nach Punktzahl, bei Gleichstand stabil nach Name
+        List<Zeile> sortiert = new ArrayList<>(zeilen);
+        sortiert.sort(Comparator.comparingInt((Zeile z) -> -z.score)
+                .thenComparing(z -> z.text.getString()));
 
-        TextRenderer tr = mc.textRenderer;
-        // Auch der Titel als Text behalten. getString() liefert die §-Codes roh mit,
-// und die werden seit 1.21 nicht mehr als Formatierung erkannt.
+        // Titel als Text behalten: getString() liefert die §-Codes roh mit,
+        // und die werden seit 1.21 nicht mehr als Formatierung erkannt.
         Text titel = objective.getDisplayName();
         if (titel == null) titel = Text.literal("");
 
+        TextRenderer tr = mc.textRenderer;
         int pad = dynamic ? 2 : 1;
         int titleH = 9;
         int rowH = 9;
 
         int contentW = tr.getWidth(titel);
-        for (int i : order) contentW = Math.max(contentW, tr.getWidth(texte.get(i)));
         int maxNumW = 0;
-        if (numbers) {
-            for (int i : order) maxNumW = Math.max(maxNumW, tr.getWidth(String.valueOf(scores.get(i))));
-            contentW += maxNumW + 4;
+        for (Zeile z : sortiert) {
+            contentW = Math.max(contentW, tr.getWidth(z.text));
+            maxNumW = Math.max(maxNumW, tr.getWidth(String.valueOf(z.score)));
         }
+        if (numbers) contentW += maxNumW + 4;
 
         int w = forcedW > 0 ? forcedW : contentW + pad * 2;
-        int bodyH = order.size() * rowH;
+        int bodyH = sortiert.size() * rowH;
         int h = forcedH > 0 ? forcedH : titleH + bodyH + pad;
 
         // rechts verankert, vertikal mittig
@@ -105,44 +121,46 @@ public final class ScoreboardRenderer {
 
         MatrixStack ms = ctx.getMatrices();
         ms.push();
-        ms.translate(left, top, 0);
-        ms.scale(scale, scale, 1f);
+        try {
+            ms.translate(left, top, 0);
+            ms.scale(scale, scale, 1f);
 
-        int bgColor = switch (bgKind) {
-            case "TRANSPARENT" -> 0x00000000;
-            case "BLUR" -> 0x60000000;
-            case "CUSTOM" -> customBg;
-            default -> 0x90000000;
-        };
-        if (bgColor != 0) ctx.fill(0, 0, w, h, bgColor);
+            int bgColor = switch (bgKind) {
+                case "TRANSPARENT" -> 0x00000000;
+                case "BLUR" -> 0x60000000;
+                case "CUSTOM" -> customBg;
+                default -> 0x90000000;
+            };
+            if (bgColor != 0) ctx.fill(0, 0, w, h, bgColor);
 
-        if (corners && cornerSize > 0) {
-            int cs = Math.min(cornerSize, Math.max(1, Math.min(w, h) / 2));
-            int cc = Ui.withAlpha(0xFFFFFF, 0.35f);
-            ctx.fill(0, 0, cs, 1, cc);
-            ctx.fill(0, 0, 1, cs, cc);
-            ctx.fill(w - cs, h - 1, w, h, cc);
-            ctx.fill(w - 1, h - cs, w, h, cc);
-        }
-        ctx.drawBorder(0, 0, w, h, Ui.withAlpha(0xFFFFFF, 0.18f));
-
-        int y = pad;
-        ctx.drawText(tr, titel, pad, y, 0xFFFFFFFF, shadow);
-        y += titleH;
-
-        for (int i : order) {
-            int score = scores.get(i);
-            // Text-Variante: nur so bleibt die Team-Farbe erhalten. Bei einer
-            // String ueberschreibt drawText die Farbe mit dem Parameter.
-            ctx.drawText(tr, texte.get(i), pad, y, farben.get(i), shadow);
-            if (numbers) {
-                String num = String.valueOf(score);
-                ctx.drawText(tr, num, w - pad - tr.getWidth(num), y, 0xFF55FF55, shadow);
+            if (corners && cornerSize > 0) {
+                int cs = Math.min(cornerSize, Math.max(1, Math.min(w, h) / 2));
+                int cc = Ui.withAlpha(0xFFFFFF, 0.35f);
+                ctx.fill(0, 0, cs, 1, cc);
+                ctx.fill(0, 0, 1, cs, cc);
+                ctx.fill(w - cs, h - 1, w, h, cc);
+                ctx.fill(w - 1, h - cs, w, h, cc);
             }
-            y += rowH;
-        }
+            ctx.drawBorder(0, 0, w, h, Ui.withAlpha(0xFFFFFF, 0.18f));
 
-        ms.pop();
+            int y = pad;
+            ctx.drawText(tr, titel, pad, y, 0xFFFFFFFF, shadow);
+            y += titleH;
+
+            for (Zeile z : sortiert) {
+                ctx.drawText(tr, z.text, pad, y, z.farbe, shadow);
+                if (numbers) {
+                    String num = String.valueOf(z.score);
+                    ctx.drawText(tr, num, w - pad - tr.getWidth(num), y, 0xFF55FF55, shadow);
+                }
+                y += rowH;
+            }
+        } finally {
+            // pop() gehoert in ein finally: sonst blieb die Matrix verschoben,
+            // wenn mitten im Zeichnen etwas flog - und dann saessen alle
+            // folgenden HUD-Elemente an der falschen Stelle.
+            ms.pop();
+        }
     }
 
     /**

@@ -342,25 +342,31 @@ public final class HudRenderer {
 
         int sz = 18, gap = 2;
         int w = sz * 3 + gap * 2;
-        int h = sz * 2 + gap * (m.flag("jump", true) ? 2 : 1);
+        boolean mitSprung = m.flag("jump", true);
+        // Zwei Reihen (W ueber A/S/D) plus die Leertaste darunter.
+        int h = mitSprung ? sz * 3 + gap * 3 : sz * 2 + gap * 2;
         ctx.fill(-2, -2, w + 2, h + 2, 0x80000000);
 
-        box(ctx, mc, sz + gap, 0, sz, Trackers.keystroke(forward));
-        box(ctx, mc, 0, sz + gap, sz, Trackers.keystroke(left));
-        box(ctx, mc, sz * 2 + gap * 2, sz + gap, sz, Trackers.keystroke(right));
-        box(ctx, mc, sz + gap, sz * 2 + gap * 2, sz, Trackers.keystroke(back));
-        if (m.flag("jump", true)) {
-            box(ctx, mc, sz + gap, sz * 3 + gap * 3, sz, Trackers.keystroke(jump));
-            return sz * 4 + gap * 4;
+        // Klassische Anordnung: W oben, darunter A S D.
+        //
+        // Vorher stand in der mittleren Reihe A, W, D - W also zweimal, und S
+        // eine Reihe zu tief. Sieht aus, als fehle eine Taste.
+        box(ctx, mc, sz + gap, 0, sz, sz, Trackers.keystroke(forward));
+        box(ctx, mc, 0, sz + gap, sz, sz, Trackers.keystroke(left));
+        box(ctx, mc, sz + gap, sz + gap, sz, sz, Trackers.keystroke(back));
+        box(ctx, mc, sz * 2 + gap * 2, sz + gap, sz, sz, Trackers.keystroke(right));
+        if (mitSprung) {
+            // Die Leertaste ist breit, nicht quadratisch - ein quadratischer
+            // Kasten daneben wirkt wie eine fuenfte Taste.
+            box(ctx, mc, 0, sz * 2 + gap * 2, w, sz, Trackers.keystroke(jump));
         }
-        return sz * 3 + gap * 3;
+        return h;
     }
 
-    private static void box(DrawContext ctx, MinecraftClient mc, int x, int y, int s, boolean down) {
-        int c = down ? 0xFF55FF55 : 0xFF555555;
-        ctx.fill(x, y, x + s, y + s, down ? 0xFF203020 : 0x80101010);
-        ctx.drawBorder(x, y, s, s, down ? 0xFF80FF80 : 0xFF808080);
-        if (down) ctx.fill(x + 2, y + 2, x + s - 2, y + s - 2, c);
+    private static void box(DrawContext ctx, MinecraftClient mc, int x, int y, int b, int h, boolean down) {
+        ctx.fill(x, y, x + b, y + h, down ? 0xFF203020 : 0x80101010);
+        ctx.drawBorder(x, y, b, h, down ? 0xFF80FF80 : 0xFF808080);
+        if (down) ctx.fill(x + 2, y + 2, x + b - 2, y + h - 2, 0xFF55FF55);
     }
 
     private static int counterList(DrawContext ctx, MinecraftClient mc, Module m) {

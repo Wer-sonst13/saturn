@@ -3,6 +3,8 @@ package gg.saturn;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.util.Identifier;
 
 import java.util.List;
 
@@ -81,15 +83,19 @@ public class HubScreen extends SaturnScreen {
     private void zeichneHub(DrawContext ctx, Ui.Theme t, int mx, int my) {
         int mitte = width / 2;
 
-        // Logo: Planet mit Ring, gross in der Mitte
-        int px = 3;
-        int logoB = Icons.SIZE * px;
-        Icons.draw(ctx, "ring", mitte - logoB / 2, blockY(), px, Ui.withAlpha(t.text, 0.95f), "LINE");
-        Icons.draw(ctx, "planet", mitte - logoB / 2 + px, blockY() + px * 2, px, t.accent, "LINE");
+        // Logo: die echte Saturn-Grafik als Textur.
+        //
+        // Vorher wurden zwei Pixel-Bitmaps uebereinandergelegt ("ring" und
+        // "planet"); das ergab einen grauen Klecks statt einem Logo.
+        int logoH = 34;
+        int logoW = logoH;   // quadratisch
+        int lx = mitte - logoW / 2;
+        ctx.drawTexture(RenderLayer::getGuiTextured, Logo.LOGO, lx, blockY(),
+                0.0f, 0.0f, logoW, logoH, logoW, logoH);
 
         // Name mittig darunter
         String titel = Ui.up("SATURN CLIENT");
-        Ui.textCentered(ctx, textRenderer, titel, mitte, blockY() + logoB + 8, t.text);
+        Ui.textCentered(ctx, textRenderer, titel, mitte, blockY() + logoH + 8, t.text);
 
         // MOD MENU
         //
@@ -285,4 +291,10 @@ public class HubScreen extends SaturnScreen {
         ConfigStore.save();
         client.setScreen(parent);
     }
+}
+
+/** Die Saturn-Grafik aus den Mod-Ressourcen. */
+final class Logo {
+    static final Identifier LOGO = Identifier.of("saturn", "logo");
+    private Logo() {}
 }

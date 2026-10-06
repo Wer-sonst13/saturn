@@ -6,7 +6,9 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardObjective;
+import net.minecraft.scoreboard.Team;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -45,9 +47,14 @@ public final class ScoreboardRenderer {
         // Namen sammeln, Punktzahl holen, absteigend sortieren
         List<String> names = new ArrayList<>();
         List<Integer> scores = new ArrayList<>();
-        // Der Anzeigetext kommt unveraendert aus dem Eintrag. Nicht selbst
-        // zusammensetzen!
+        // Anzeigetext und Farbe getrennt halten.
+        //
+        // entry.display() liefert fuer die Seitenleiste bereits den FERTIGEN
+        // Eintrag inklusive Zahl. Wir zeichnen die Zahl aber noch selbst in
+        // Grün dazu - dadurch stand jede Zeile doppelt da ("Kills: 0" zweimal).
+        // Also nur den Namen nehmen und die Team-Farbe selbst setzen.
         List<Text> texte = new ArrayList<>();
+        List<Integer> farben = new ArrayList<>();
         // ScoreboardEntry ist seit 1.21 ein Record mit owner() und value() und
         // implementiert KEIN ScoreHolder. Die alte Pruefung
         // "instanceof ScoreHolder" traf deshalb nie zu, die Liste blieb leer
@@ -59,13 +66,9 @@ public final class ScoreboardRenderer {
             if (name == null || name.isEmpty()) continue;
             names.add(name);
             scores.add(eintrag.value());
-            // display() traegt Team-Farbe und -Formatierung bereits drin.
-            // Selbst bauen ueber team.getPrefix().getString() liefert seit 1.21
-            // die rohen §-Codes mit - Text.literal() parst die nicht mehr,
-            // also standen die Codes als Buchstaben im Bild und die Farben
-            // fehlten ganz.
-            Text t = eintrag.display();
+            Text t = eintrag.name();
             texte.add(t == null ? Text.literal(name) : t);
+            farben.add(teamFarbe(board, name, 0xFFFFFFFF));
         }
         if (names.isEmpty()) return;
 
@@ -131,7 +134,7 @@ public final class ScoreboardRenderer {
             int score = scores.get(i);
             // Text-Variante: nur so bleibt die Team-Farbe erhalten. Bei einer
             // String ueberschreibt drawText die Farbe mit dem Parameter.
-            ctx.drawText(tr, texte.get(i), pad, y, 0xFFFFFF, shadow);
+            ctx.drawText(tr, texte.get(i), pad, y, farben.get(i), shadow);
             if (numbers) {
                 String num = String.valueOf(score);
                 ctx.drawText(tr, num, w - pad - tr.getWidth(num), y, 0xFF55FF55, shadow);
@@ -140,5 +143,24 @@ public final class ScoreboardRenderer {
         }
 
         ms.pop();
+    }
+
+    /**
+     * Farbe des Teams eines Spielers, sonst {@code fallback}.
+     *
+     * Wichtig: nicht {@code team.getPrefix().getString()}. Seit 1.21 steckt in
+     * einem per getString() geholten Text kein Formatierungs-Parser mehr -
+     * die §-Codes standen deshalb als Buchstaben im Bild und die Farben
+     * fehlten. Die Farbe holt man sich hier direkt aus dem Team.
+     */
+    private static int teamFarbe(Scoreboard board, String name, int fallback) {
+        try {
+            Team team = board.getScoreHolderTeam(name);
+            if (team == null) return fallback;
+            Formatting f = team.getColor();
+            return f == null ? fallback : 0xFF000000 | f.getColorValue();
+        } catch (Throwable t) {
+            return fallback;
+        }
     }
 }

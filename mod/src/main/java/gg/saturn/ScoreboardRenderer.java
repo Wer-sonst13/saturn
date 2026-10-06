@@ -8,7 +8,10 @@ import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardEntry;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.scoreboard.Team;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
+import net.minecraft.text.TextColor;
 import net.minecraft.util.Formatting;
 
 import java.util.ArrayList;
@@ -89,30 +92,6 @@ public final class ScoreboardRenderer {
             return;
         }
         if (zeilen.isEmpty()) return;
-
-        // Einmalige Diagnose: was schickt der Server wirklich?
-        //
-        // Nach mehreren Fehlversuchen ist die Vermutung nicht mehr wert als
-        // eine Messung. Es wird genau einmal je Objective gemeldet, nicht in
-        // jedem Bild - sonst fuellt das die Log voll.
-        if (!diagnoseGemeldet.contains(objective.getName())) {
-            diagnoseGemeldet.add(objective.getName());
-            System.err.println("[Saturn] Scoreboard '" + objective.getName() + "' mit "
-                    + zeilen.size() + " Eintraegen");
-            int n = 0;
-            for (ScoreboardEntry e : board.getScoreboardEntries(objective)) {
-                if (e == null || n >= 6) continue;
-                Team t = board.getScoreHolderTeam(e.owner());
-                System.err.println("   [" + n + "] owner='" + e.owner()
-                        + "' name='" + (e.name() == null ? "null" : e.name().getString())
-                        + "' wert=" + e.value()
-                        + " team=" + (t == null ? "keins" : t.getName())
-                        + " prefix='" + (t == null ? "" : t.getPrefix().getString())
-                        + "' suffix='" + (t == null ? "" : t.getSuffix().getString())
-                        + "' teamFarbe=" + farbeVon(t));
-                n++;
-            }
-        }
 
         // Viele Server benutzen die Punktzahl nur als Reihenfolge (10, 9, 8,
         // ...). Deshalb danach sortieren, sonst kaemen die Zeilen in der
@@ -203,34 +182,173 @@ public final class ScoreboardRenderer {
      * steckt in einem geholten String kein Formatierungs-Parser mehr - die
      * §-Codes stuenden dann als Buchstaben im Bild und die Farben fehlten.
      */
+    /**
+     * Baut den Text einer Zeile.
+     *
+     * GEMESSEN (im Spielprotokoll):
+     *   owner = "§0§6§r"        <- nur Farbcodes, kein Text
+     *   prefix = "⛨ ʀᴀɴᴋ » MANAGER "   <- der eigentliche Text
+     *
+     * Der Name besteht also fast nur aus Formatierung. Ein Text.literal() auf
+     * so einen String zeichnet Zeichen ohne Glyphe - die Zeile blieb leer.
+     * Genau das war der Fehler, den ich vorher nicht gefunden habe.
+     *
+     * Deshalb: die Codes aus dem Namen werden zu einem echten Style, und der
+     * Text aus dem Team-Prefix wird mit diesem Style gezeichnet. Der Prefix
+     * bringt seine eigenen Farben fuer einzelne Woerter mit (§7, §a ...), die
+     * dann die Grundfarbe uebersteuern - so wie beim Original.
+     */
     private static Text[] textDerZeile(Scoreboard board, ScoreboardEntry eintrag, String name) {
         Text eigener = eintrag.name();
         String roh = eigener != null ? eigener.getString() : name;
 
-        String beitrag = "";
+        String prefix = "";
+        String suffix = "";
         try {
             Team team = board.getScoreHolderTeam(name);
             if (team != null) {
-                beitrag = team.getPrefix().getString() + team.getSuffix().getString();
+                if (team.getPrefix() != null) prefix = team.getPrefix().getString();
+                if (team.getSuffix() != null) suffix = team.getSuffix().getString();
             }
         } catch (Throwable ignoriert) {
             // dann eben ohne Team
         }
 
+        Style grund = stilAusCodes(roh);
+
         List<Text> fertig = new ArrayList<>();
-        for (String teil : roh.split("\n", -1)) {
-            String s = teil;
-            if (s.isBlank()) {
-                if (beitrag.isBlank()) continue;   // wirklich leere Zeile
-                s = beitrag;
+        // Der Name kann selbst Text enthalten (manche Server). Dann wird er
+        // mit seinem eigenen Style gezeichnet.
+        String sichtbarerName = ohneCodes(roh);
+        if (!sichtbarerName.isBlank()) {
+            for (String teil : sichtbarerName.split("\n", -1)) {
+                if (!teil.isBlank()) fertig.add(Text.literal(teil).setStyle(grund));
             }
-            if (s.isBlank()) continue;
-            fertig.add(Text.literal(s));
         }
-        if (fertig.isEmpty()) {
-            fertig.add(Text.literal(beitrag.isBlank() ? name : beitrag));
+        // Der Prefix enthaelt den eigentlichen Text samt eigener Farben.
+        // Die werden zu echtem Text mit Formatierung gebaut und dann auf die
+        // Grundfarbe aus dem Namen gesetzt - so wie im Original.
+        String beitrag = prefix + suffix;
+        if (!ohneCodes(beitrag).isBlank()) {
+            for (Text teil : legy(beitrag)) {
+                fertig.add(teil.copy());
+            }
         }
+        if (fertig.isEmpty()) return new Text[0];
         return fertig.toArray(new Text[0]);
+    }
+
+    /** Der Text ohne die §-Codes. */
+    private static String ohneCodes(String s) {
+        StringBuilder r = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\u00A7' && i + 1 < s.length()) { i++; continue; }
+            r.append(c);
+        }
+        return r.toString();
+    }
+
+    /**
+     * Wandelt eine Folge von §-Codes in einen echten Minecraft-Style.
+     *
+     * Genau das fehlte vorher: die Codes waren Text, dabei sind sie
+     * Formatierung. §0§6§r heisst "schwarz, dann gold, dann zurueck" und
+     * ergibt als Style die goldene Farbe fuer das, was danach kommt.
+     */
+    private static Style stilAusCodes(String s) {
+        Style stil = Style.EMPTY;
+        for (int i = 0; i < s.length(); i++) {
+            if (s.charAt(i) != '\u00A7' || i + 1 >= s.length()) continue;
+            char f = s.charAt(++i);
+            if (f == '#' && i + 6 <= s.length() - 1) {
+                String hex = s.substring(i + 1, i + 7);
+                try {
+                    stil = codeAnwenden(stil, TextColor.parse(hex));
+                    i += 6;
+                    continue;
+                } catch (RuntimeException ignoriert) {
+                    // kein Hex-Code
+                }
+            }
+            Formatting fmt = formatierungZu(f);
+            if (fmt == null) continue;
+            stil = codeAnwenden(stil, fmt);
+        }
+        return stil;
+    }
+
+    /** §0..§f, §k..§o, §r in die passende Formatierung. */
+    private static Formatting formatierungZu(char f) {
+        return switch (Character.toLowerCase(f)) {
+            case '0' -> Formatting.BLACK;
+            case '1' -> Formatting.DARK_BLUE;
+            case '2' -> Formatting.DARK_GREEN;
+            case '3' -> Formatting.DARK_AQUA;
+            case '4' -> Formatting.DARK_RED;
+            case '5' -> Formatting.DARK_PURPLE;
+            case '6' -> Formatting.GOLD;
+            case '7' -> Formatting.GRAY;
+            case '8' -> Formatting.DARK_GRAY;
+            case '9' -> Formatting.BLUE;
+            case 'a' -> Formatting.GREEN;
+            case 'b' -> Formatting.AQUA;
+            case 'c' -> Formatting.RED;
+            case 'd' -> Formatting.LIGHT_PURPLE;
+            case 'e' -> Formatting.YELLOW;
+            case 'f' -> Formatting.WHITE;
+            case 'k' -> Formatting.OBFUSCATED;
+            case 'l' -> Formatting.BOLD;
+            case 'm' -> Formatting.STRIKETHROUGH;
+            case 'n' -> Formatting.UNDERLINE;
+            case 'o' -> Formatting.ITALIC;
+            case 'r' -> Formatting.RESET;
+            default -> null;
+        };
+    }
+
+    /**
+     * Macht aus einem alten §-String echten Text mit Formatierung.
+     *
+     * Der entscheidende Schritt: §-Codes werden zu Styles, nicht zu Zeichen.
+     * Vorher wurden sie mitgezeichnet - und genau deshalb waren die Zeilen
+     * leer, denn der Name besteht laut Messung fast nur aus Codes.
+     *
+     * Gibt je Zeile (Umbruch) einen eigenen Text zurueck, damit mehrere
+     * Zeilen getrennt gezeichnet werden koennen.
+     */
+    private static List<Text> legy(String s) {
+        List<Text> raus = new ArrayList<>();
+        MutableText zeile = Text.empty();
+        Style stil = Style.EMPTY;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\u00A7' && i + 1 < s.length()) {
+                char f = s.charAt(++i);
+                if (f == '#' && i + 7 <= s.length()) {
+                    String hex = s.substring(i + 1, i + 7);
+                    try {
+                        stil = codeAnwenden(stil, TextColor.parse(hex));
+                        i += 6;
+                        continue;
+                    } catch (RuntimeException ignoriert) {
+                        // kein Hex-Code
+                    }
+                }
+                Formatting fmt = formatierungZu(f);
+                if (fmt == null) continue;
+                stil = codeAnwenden(stil, fmt);
+                continue;
+            }
+            if (c == '\n') {
+                raus.add(zeile);
+                zeile = Text.empty();
+                continue;
+            }
+            zeile.append(Text.literal(String.valueOf(c)).setStyle(stil));
+        }
+        raus.add(zeile);
+        return raus;
     }
 
     /**
@@ -260,5 +378,24 @@ public final class ScoreboardRenderer {
         Integer wert = f.getColorValue();
         if (wert == null) return 0;
         return 0xFF000000 | wert;
+    }
+    /**
+     * Einen §-Code auf den Style anwenden.
+     *
+     * In 1.21 gibt es weder Style.applyFormat() noch TextColor.getName();
+     * beides war aelter und wird vom Compiler abgelehnt. Farben laufen ueber
+     * withColor, die Auszeichnungen ueber die einzelnen Setter.
+     */
+    private static Style codeAnwenden(Style stil, Object fmt) {
+        if (fmt instanceof TextColor farbe) return stil.withColor(farbe);
+        if (!(fmt instanceof Formatting f)) return stil;
+        if (f == Formatting.RESET) return Style.EMPTY;
+        if (f.isColor()) return stil.withColor(f);
+        if (f == Formatting.BOLD) return stil.withBold(true);
+        if (f == Formatting.ITALIC) return stil.withItalic(true);
+        if (f == Formatting.UNDERLINE) return stil.withUnderline(true);
+        if (f == Formatting.STRIKETHROUGH) return stil.withStrikethrough(true);
+        if (f == Formatting.OBFUSCATED) return stil.withObfuscated(true);
+        return stil;
     }
 }

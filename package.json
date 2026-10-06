@@ -1,0 +1,49 @@
+{
+  "name": "nolimite",
+  "version": "1.0.0",
+  "description": "NoLimite Minecraft Launcher mit Mod-Client, Instanzen und Logs",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --publish never"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0",
+    "minecraft-launcher-core": "^3.18.2",
+    "msmc": "^5.0.5"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "gg.nolimite.launcher",
+    "productName": "NoLimite",
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "NoLimite",
+      "uninstallDisplayName": "NoLimite",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Wer-sonst13",
+        "repo": "nolimite"
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "."
+      }
+    ]
+  },
+  "author": "NoLimite"
+}

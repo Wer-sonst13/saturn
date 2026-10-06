@@ -1,0 +1,262 @@
+<!doctype html><html><head><meta charset="utf-8"><title>NoLimite</title>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head><body>
+<nav>
+  <div class="logo" onclick="nav('play')" title="NoLimite"><span class="bolt">⚡</span></div>
+  <div class="nb on" data-p="play"><i>▶</i><span>Spielen</span></div>
+  <div class="nb" data-p="prof"><i>▤</i><span>Profile</span></div>
+  <div class="nb" data-p="mods"><i>▦</i><span>Inhalte</span></div>
+  <div class="nb" data-p="log"><i>▤</i><span>Logs</span></div>
+  <div class="nb" data-p="set"><i>⚙</i><span>Settings</span></div>
+  <div class="sp"></div>
+</nav>
+
+<div class="col">
+  <header>
+    <div class="brand">
+      <b id="brandName">NoLimite</b>
+      <span class="ver" id="ver">v1.0.0</span>
+    </div>
+    <div class="sp"></div>
+    <button class="pill acc" id="instBtn" onclick="toggleInst()">
+      <span class="dot"></span><span id="instCount">0 Instanz</span>
+    </button>
+    <button class="pill" id="accBtn" onclick="login()"><span id="accName">Anmelden</span></button>
+  </header>
+
+  <div class="drop" id="instDrop"></div>
+
+  <main>
+    <!-- ------------------------------------------------ SPIELEN -->
+    <section class="page on" id="play">
+      <div class="center">
+        <div id="progress"><div id="progressBar"></div><span id="progressText"></span></div>
+        <div class="avatarWrap">
+          <img class="avatar" id="avatar" src="https://mc-heads.net/avatar/MHF_Steve">
+        </div>
+        <div class="hello">
+          <div class="nick" id="nick">Steve</div>
+          <div class="profileName" id="curProfile">Kein Profil gewählt</div>
+        </div>
+        <div class="launchRow">
+          <button class="play" onclick="launch()">
+            <span class="tri">▶</span>
+            <span class="lbl">SPIELEN<small id="playSub">Keine Instanz</small></span>
+          </button>
+          <button class="icon" onclick="nav('prof')" title="Profil wählen">▾</button>
+        </div>
+        <div class="quick">
+          <button class="ghost" onclick="nav('mods')">▦ Mods &amp; Packs</button>
+          <button class="ghost" onclick="nav('log')">▤ Logs</button>
+          <button class="ghost" onclick="nav('set')">⚙ Einstellungen</button>
+        </div>
+      </div>
+      <aside class="side">
+        <h3 class="px">Instanzen</h3>
+        <div id="playList" class="miniList"></div>
+        <h3 class="px">Zuletzt geloggt</h3>
+        <div class="news n1">Willkommen bei NoLimite</div>
+        <div class="news n2" onclick="nav('mods')">Mods, Packs &amp; Shader</div>
+        <div class="news n3" onclick="nav('prof')">Profile mit Spielzeit</div>
+      </aside>
+    </section>
+
+    <!-- ------------------------------------------------ PROFILE -->
+    <section class="page" id="prof">
+      <div class="scroll">
+        <div class="row">
+          <h2 class="px">Profile</h2>
+          <div class="sp"></div>
+          <button class="primary" onclick="openCreate()">＋ Neues Profil</button>
+        </div>
+        <div class="grid" id="profGrid"></div>
+      </div>
+      <!-- Detailansicht -->
+      <div class="detail" id="detail">
+        <div class="detailHead">
+          <button class="back" onclick="closeDetail()">← ZURÜCK</button>
+          <div class="dHead">
+            <img class="dAvatar" id="dAvatar" src="https://mc-heads.net/avatar/MHF_Steve">
+            <div class="dTitle">
+              <div class="dName" id="dName">Name</div>
+              <div class="chips">
+                <span class="tag" id="dMc">1.21.4</span>
+                <span class="tag" id="dLoader">Fabric</span>
+                <span class="tag" id="dState"></span>
+              </div>
+            </div>
+            <div class="dStats">
+              <div class="stat"><i>Zuletzt gespielt</i><b id="dLast">–</b></div>
+              <div class="stat"><i>Spielzeit</i><b id="dPlay">–</b></div>
+              <div class="stat"><i>Speicher</i><b id="dSize">–</b></div>
+            </div>
+            <div class="dActions">
+              <button class="play small" onclick="launch()"><span class="tri">▶</span><span class="lbl">SPIELEN</span></button>
+              <button class="icon" onclick="openRename()" title="Umbenennen">&#9998;</button>
+              <button class="icon" onclick="ipc.invoke('folder', sel)" title="Ordner &#246;ffnen">&#128193;</button>
+              <button class="icon danger" onclick="delProfile(sel)" title="L&#246;schen">&#128465;</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dTabs">
+          <div class="dt on" data-dt="mods">Mods <b id="cMods">0</b></div>
+          <div class="dt" data-dt="packs">Ressourcenpakete</div>
+          <div class="dt" data-dt="shader">Shader</div>
+          <div class="dt" data-dt="datapacks">Datenpakete</div>
+          <div class="dt" data-dt="worlds">Welten</div>
+          <div class="dt" data-dt="shots">Screenshots</div>
+        </div>
+
+        <div class="dBody">
+          <div class="dPane on" data-dp="mods">
+            <div class="row">
+              <input type="text" id="modFilter" placeholder="🔍 Mods filtern …" oninput="renderMods()">
+              <div class="sp"></div>
+              <button class="primary" onclick="nav('mods')">＋ Mods suchen</button>
+            </div>
+            <div class="modList" id="modList"></div>
+          </div>
+
+          <div class="dPane" data-dp="packs"><div class="packList" id="resList"></div></div>
+          <div class="dPane" data-dp="shader"><div class="packList" id="shaderList"></div></div>
+          <div class="dPane" data-dp="datapacks"><div class="packList" id="dataList"></div></div>
+
+          <div class="dPane" data-dp="worlds"><div class="packList" id="worldList"></div></div>
+
+          <div class="dPane" data-dp="shots">
+            <div class="row"><div class="sp"></div><button class="ghost" onclick="ipc.invoke('openScreenshots', sel)">Ordner öffnen</button></div>
+            <div class="shots" id="shotList"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ------------------------------------------------ INHALTE -->
+    <section class="page" id="mods">
+      <div class="scroll">
+        <div class="row">
+          <h2 class="px">Inhalte</h2>
+          <span class="info" id="mcinfo"></span>
+          <div class="sp"></div>
+          <select id="sort" onchange="loadContent(true)">
+            <option value="relevance">Beliebtheit</option>
+            <option value="downloads">Downloads</option>
+            <option value="updated">Zuletzt aktualisiert</option>
+            <option value="newest">Neueste</option>
+          </select>
+        </div>
+
+        <div class="tabs">
+          <div class="tab on" data-type="mod">MODPACKS</div>
+          <div class="tab" data-type="mod">MODS</div>
+          <div class="tab" data-type="resourcepack">RESOURCEPACKS</div>
+          <div class="tab" data-type="shader">SHADERS</div>
+          <div class="tab" data-type="datapack">DATAPACKS</div>
+        </div>
+
+        <div class="filters">
+          <div class="searchWrap">
+            <input type="text" id="q" placeholder="🔍  mods durchsuchen …" oninput="debounce()">
+          </div>
+          <select id="fCat" onchange="loadContent(true)"><option value="">Alle Kategorien</option></select>
+          <select id="fLoader" onchange="loadContent(true)"><option value="">Alle Loader</option></select>
+          <select id="fEnv" onchange="loadContent(true)"><option value="">Umgebung</option></select>
+        </div>
+
+        <div class="chips" id="chips"></div>
+        <div class="resList" id="res"></div>
+        <div class="centerRow"><button id="more" class="ghost" style="display:none" onclick="loadContent(false)">Mehr laden</button></div>
+      </div>
+      <div class="bulk" id="bulk">
+        <span id="bulkCount">0 ausgewählt</span>
+        <div class="sp"></div>
+        <button class="ghost" onclick="clearSel()">Leeren</button>
+        <button class="primary" id="bulkInstall" onclick="installSel()">Installieren</button>
+      </div>
+    </section>
+
+    <!-- ------------------------------------------------ LOGS -->
+    <section class="page" id="log">
+      <div class="scroll nopad">
+        <div class="logHead">
+          <div class="row">
+            <h2 class="px">Instanz-Logs</h2>
+            <div class="sp"></div>
+            <select id="logSel" onchange="selectLog()"></select>
+            <button class="ghost" onclick="copyLog()">Kopieren</button>
+            <button class="ghost" onclick="clearLog()">Leeren</button>
+          </div>
+          <div class="row">
+            <label class="cb"><input type="checkbox" id="logAuto" checked> automatisch scrollen</label>
+            <label class="cb"><input type="checkbox" id="logFilter"> nur Warnungen/Fehler</label>
+          </div>
+        </div>
+        <pre class="logBox" id="logBox">Noch keine Logs. Starte eine Instanz, um die Ausgabe hier zu sehen.</pre>
+      </div>
+    </section>
+
+    <!-- ------------------------------------------------ SETTINGS -->
+    <section class="page" id="set">
+      <div class="scroll narrow">
+        <h2 class="px">Einstellungen</h2>
+        <div class="setRow">
+          <label>RAM je Instanz</label>
+          <select id="ram" onchange="save()">
+            <option>2</option><option>3</option><option selected>4</option>
+            <option>6</option><option>8</option><option>12</option><option>16</option>
+          </select>
+          <span class="unit">GB</span>
+        </div>
+        <div class="setRow">
+          <label>Akzentfarbe</label>
+          <input type="color" id="col" value="#7c5cff">
+        </div>
+        <div class="setRow">
+          <label>Theme</label>
+          <select id="theme" onchange="save()">
+            <option value="dark">Dunkel</option>
+            <option value="light">Hell</option>
+          </select>
+        </div>
+        <div class="setRow">
+          <label>Schrift</label>
+          <select id="font" onchange="save()">
+            <option value="pixel">Pixel</option>
+            <option value="sans">Modern</option>
+          </select>
+        </div>
+        <hr>
+        <h3 class="px">In der Minecraft-Mod</h3>
+        <ul class="keys">
+          <li><b>Rechts-Shift</b> NoLimite-Menü öffnen</li>
+          <li><b>F6</b> HUD-Editor (Elemente verschieben, Mausrad = Größe)</li>
+          <li><b>F7</b> Chat Utils (Chat durchsuchen und kopieren)</li>
+          <li><b>F8</b> Vanilla-HUD ein-/ausblenden</li>
+        </ul>
+        <p class="info">Die Mod liegt unter <code>~/.nolimite/instances/&lt;profil&gt;/mods/nolimite.jar</code>
+          und wird beim Start jedes Fabric-Profils automatisch einsortiert. Unterstützt wird Minecraft 1.21.4.</p>
+        <hr>
+        <button class="danger ghost" onclick="clearAll()">Alle Instanzen löschen</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toasts"></div>
+
+<!-- Dialog: neues Profil -->
+<div class="modal" id="modal">
+  <div class="modalBox">
+    <h3 class="px" id="modalTitle">Neues Profil</h3>
+    <div class="modalBody" id="modalBody"></div>
+    <div class="modalFoot">
+      <button class="ghost" onclick="closeModal()">Abbrechen</button>
+      <button class="primary" id="modalOk" onclick="modalOk()">Erstellen</button>
+    </div>
+  </div>
+</div>
+
+<script src="renderer.js"></script>
+</body></html>

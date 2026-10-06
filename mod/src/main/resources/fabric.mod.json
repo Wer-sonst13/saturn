@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "nolimite",
+  "version": "${version}",
+  "name": "NoLimite",
+  "description": "NoLimite Client: Modul-Menü, HUD-Editor, Scoreboard-Anpassung, Chat Utils und viele ein-/ausschaltbare Module.",
+  "authors": ["NoLimite"],
+  "environment": "client",
+  "entrypoints": { "client": ["gg.nolimite.NoLimiteModInitializer"] },
+  "mixins": ["nolimite.mixins.json"],
+  "depends": { "fabricloader": ">=0.16.0", "minecraft": "~1.21.4", "java": ">=21", "fabric-api": "*" }
+}

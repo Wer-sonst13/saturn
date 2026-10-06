@@ -1,0 +1,34 @@
+# Abhängigkeiten und Build-Ergebnisse - nichts davon gehört ins Repo.
+# Alles hier wird lokal erzeugt oder von GitHub Actions gebaut.
+node_modules/
+
+# Launcher-Setup und entpackte Electron-Version (~460 MB)
+dist/
+
+# Von Fabric Loom erzeugt: Minecraft-Jars, Remaps, Cache (~69 MB)
+mod/build/
+mod/.gradle/
+mod/run/
+mod/out/
+
+# Die Mod wird beim Bauen erzeugt (lokal oder in GitHub Actions)
+resources/nolimite-mod.jar
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Werkzeuge / Editoren
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+*.swp
+.DS_Store
+Thumbs.db
+
+# Electron-Caches
+*.asar.tmp

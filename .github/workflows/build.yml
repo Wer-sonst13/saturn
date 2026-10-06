@@ -1,0 +1,94 @@
+name: Build NoLimite
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Prüft, dass die Quelldateien zusammenpassen (die Grossgeschriebenen
+      # Modul-/Screen-Namen müssen exakt so im Dateisystem stehen).
+      - name: Java-Dateinamen gegen Klassen abgleichen
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $fehler = @()
+          Get-ChildItem -Recurse -Filter *.java | ForEach-Object {
+            $name = $_.BaseName
+            $inhalt = Get-Content $_.FullName -Raw
+            if ($inhalt -notmatch "(class|interface|enum)\s+$name\b") {
+              $fehler += "$name  ($($_.FullName))"
+            }
+          }
+          if ($fehler.Count) {
+            Write-Error ("Dateiname passt nicht zur Klasse: " + ($fehler -join ', '))
+          }
+          Write-Host "Alle Java-Dateien passen zu ihren Klassen."
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Mod bauen
+        working-directory: mod
+        run: gradle build --console=plain
+
+      - name: Mod-Datei suchen
+        id: jar
+        shell: pwsh
+        run: |
+          $jar = Get-ChildItem mod/build/libs/*.jar |
+            Where-Object { $_.Name -notmatch 'sources|dev' } |
+            Select-Object -First 1
+          if (-not $jar) { throw 'Keine Mod-Jar gefunden' }
+          "pfad=$($jar.FullName)" >> $env:GITHUB_OUTPUT
+          "name=$($jar.Name)"    >> $env:GITHUB_OUTPUT
+          Write-Host "Mod: $($jar.FullName) ($($jar.Length) Bytes)"
+
+      # resources/nolimite-mod.jar ist bewusst nicht im Repo (siehe .gitignore)
+      # und wird hier frisch erzeugt.
+      - name: Mod in resources ablegen
+        shell: pwsh
+        run: Copy-Item "${{ steps.jar.outputs.pfad }}" resources/nolimite-mod.jar -Force
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+
+      - name: Ergebnis anzeigen
+        shell: pwsh
+        run: |
+          Get-ChildItem dist | Select-Object Name, Length
+          if (-not (Test-Path resources/nolimite-mod.jar)) {
+            throw 'Mod fehlt im Setup - resources/nolimite-mod.jar wurde nicht erzeugt'
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NoLimite-Setup
+          path: dist/*.exe
+          if-no-files-found: error
+
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
+            dist/latest.yml
+            dist/*.blockmap

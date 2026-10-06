@@ -1,5 +1,6 @@
 package gg.saturn.mixin;
 
+import gg.saturn.HubScreen;
 import gg.saturn.SaturnMenuScreen;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -51,8 +52,9 @@ public class PauseMenuMixin {
             y = Math.max(4, self.height / 4 - 26);
         }
 
+        // fuehrt zum Hub, nicht direkt zur Mod-Liste - der Hub ist die einzige Eingang
         ButtonWidget button = ButtonWidget.builder(Text.literal("Saturn Client"), b ->
-                        MinecraftClient.getInstance().setScreen(new SaturnMenuScreen(self)))
+                        MinecraftClient.getInstance().setScreen(new HubScreen(self)))
                 .dimensions(x, y, w, 20)
                 .build();
         ((ScreenAccessor) (Object) self).saturn$addDrawableChild(button);

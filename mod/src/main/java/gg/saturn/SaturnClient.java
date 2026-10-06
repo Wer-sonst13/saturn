@@ -71,11 +71,16 @@ public class SaturnClient {
         HudRenderCallback.EVENT.register((ctx, tick) -> HudRenderer.renderAll(ctx, MinecraftClient.getInstance()));
 
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+            // R-Shift oeffnet jetzt nur noch den Hub. Das Mod-Menue erreicht man
+            // von dort ueber den Knopf - so ist der Hub die einzige Eingang.
             while (menuKey.wasPressed()) {
                 menuIsOpen = true;
-                mc.setScreen(new SaturnMenuScreen(mc.currentScreen));
+                mc.setScreen(new HubScreen(mc.currentScreen));
             }
+            // F6 oeffnet den Editor nur noch, wenn NICHT der Hub offen ist.
+            // Im Hub schaltet dieselbe Taste den Editor-Modus ein und aus.
             while (editorKey.wasPressed()) {
+                if (mc.currentScreen instanceof HubScreen) break;
                 mc.setScreen(new HudEditorScreen(mc.currentScreen));
             }
             while (chatUtilsKey.wasPressed()) {

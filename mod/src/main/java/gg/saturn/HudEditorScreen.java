@@ -76,11 +76,26 @@ public class HudEditorScreen extends SaturnScreen {
     }
 
     private String hitModule(MinecraftClient mc, double mx, double my) {
-        for (Module m : Modules.hudModules()) {
+        // Von hinten nach vorn pruefen und bei Treffern den kleinsten Kasten
+        // gewinnen lassen. Sonst greift man bei ueberlappenden Elementen immer
+        // das zuerst gelistete - und ein grosses Element verdeckt ein kleines
+        // darunter, das man nie erreichen kann.
+        String treffer = null;
+        int kleinsteFlaeche = Integer.MAX_VALUE;
+        List<Module> liste = Modules.hudModules();
+        for (int i = liste.size() - 1; i >= 0; i--) {
+            Module m = liste.get(i);
             if (!m.enabled) continue;
-            if (hit(mx, my, HudRenderer.bounds(m.id, mc))) return m.id;
+            int[] b = HudRenderer.bounds(m.id, mc);
+            if (b[2] <= 0 || b[3] <= 0) continue;
+            if (!hit(mx, my, b)) continue;
+            int flaeche = b[2] * b[3];
+            if (flaeche < kleinsteFlaeche) {
+                kleinsteFlaeche = flaeche;
+                treffer = m.id;
+            }
         }
-        return null;
+        return treffer;
     }
 
     @Override
@@ -108,9 +123,16 @@ public class HudEditorScreen extends SaturnScreen {
         }
         dragging = hitModule(mc, mx, my);
         if (dragging != null) {
-            Module m = Module.get(dragging);
-            dragDX = (int) (mx - m.x);
-            dragDY = (int) (my - m.y);
+            // Greifpunkt IMMER als Abstand zur linken oberen Ecke des Kastens
+            // merken, nicht zu m.x/m.y.
+            //
+            // Das war der Grund, warum sich das Scoreboard nicht greifen liess:
+            // sein x ist ein Versatz vom rechten Rand und sein y ein Versatz
+            // von der Bildmitte. Nimmt man m.x als Position, ist der Greifpunkt
+            // um die halbe Bildbreite daneben - man zieht ins Leere.
+            int[] b = HudRenderer.bounds(dragging, mc);
+            dragDX = (int) Math.round(mx - b[0]);
+            dragDY = (int) Math.round(my - b[1]);
         }
         return true;
     }
@@ -119,13 +141,21 @@ public class HudEditorScreen extends SaturnScreen {
     public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
         if (dragging != null) {
             Module m = Module.get(dragging);
+            // Kasten groesse jedes Mal neu bestimmen: sie haengt an m.scale,
+            // das sich ja per Mausrad waehrend des Ziehens aendern kann.
+            int[] b = HudRenderer.bounds(dragging, MinecraftClient.getInstance());
+            // Neue linke obere Ecke auf dem Bildschirm
+            double links = mx - dragDX;
+            double oben = my - dragDY;
             if (dragging.equals("scoreboard")) {
-                // Scoreboard ist rechts verankert
-                m.x = (int) (mx - width + dragDX + HudRenderer.bounds("scoreboard", MinecraftClient.getInstance())[2]);
-                m.y = (int) (my - height / 2.0 + dragDY);
+                // Das Scoreboard haengt am rechten Rand und in der Mitte.
+                // Zurueckrechnen heisst deshalb: aus der Bildposition wieder
+                // den Versatz machen, den ScoreboardRenderer erwartet.
+                m.x = Math.round(links + b[2] - width);
+                m.y = Math.round(oben + b[3] / 2.0 - height / 2.0);
             } else {
-                m.x = mx - dragDX;
-                m.y = my - dragDY;
+                m.x = Math.round(links);
+                m.y = Math.round(oben);
             }
             return true;
         }

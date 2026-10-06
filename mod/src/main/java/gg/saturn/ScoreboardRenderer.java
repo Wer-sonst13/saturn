@@ -83,7 +83,11 @@ public final class ScoreboardRenderer {
                         teamFarbe(board, name, 0xFFFFFFFF), eintrag.value()));
             }
         } catch (Throwable t) {
-            return;   // lieber nichts als halb gezeichnet
+            // Nicht einfach schlucken. Ein still verschluckter Fehler fuehrt
+            // dazu, dass gar nichts mehr erscheint und man den Grund nicht
+            // sieht. Im Spiel melden, dann ist es nachlesbar.
+            System.err.println("[Saturn] Scoreboard-Eintraege nicht lesbar: " + t);
+            return;
         }
         if (zeilen.isEmpty()) return;
 

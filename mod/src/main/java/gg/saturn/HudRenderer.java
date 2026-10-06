@@ -133,9 +133,17 @@ public final class HudRenderer {
                 y += 10;
                 continue;
             }
-            if (l.length() > 1 && l.charAt(1) == '~') {
-                // "~c<hex>" = eigene Farbe, z. B. ~c55FF55
-                ctx.drawText(mc.textRenderer, l.substring(2), 0, y, parseColor(l.substring(2)), true);
+            // "~c<hex>" = eigene Farbe, z. B. ~c55FF55
+            //
+            // Wichtig: nach "~c" suchen, nicht an Stelle 1 auf '~' pruefen.
+            // An Stelle 1 steht bei "~c55FF55" das 'c', nie ein '~'. Die alte
+            // Pruefung traf also nie zu - dann wurde der Code wörtlich mit
+            // gezeichnet ("~c55FF55" stand im Bild), und bounds()(), das
+            // sauber auf substring(3) schneidet, mass den Kasten viel zu klein.
+            // Genau das sah nach kaputten Modulen aus.
+            if (l.startsWith("~c") && l.length() > 3) {
+                String hex = l.substring(3);
+                ctx.drawText(mc.textRenderer, hex, 0, y, parseColor(hex), true);
             } else {
                 ctx.drawText(mc.textRenderer, l, 0, y, color, shadow);
             }
@@ -249,22 +257,48 @@ public final class HudRenderer {
     private static int armorIcons(DrawContext ctx, MinecraftClient mc, Module m) {
         if (mc.player == null) return 0;
         boolean percent = m.flag("percent", false);
+        float sc = (float) Math.max(0.5, Math.min(2.0, m.num("scale", 1.0)));
+
+        // Ein Slot ist 16 Pixel hoch - immer, auch nach dem Skalieren, denn
+        // die Skalierung passiert ja schon ueber die Matrix. Mit Abstand 12
+        // lagen die Icons vorher uebereinander.
+        final int SLOT = 16;
+
+        MatrixStack ms = ctx.getMatrices();
+        ms.push();
+        ms.scale(sc, sc, 1f);
+
         int y = 0;
         for (ItemStack s : armorOf(mc.player)) {
             if (s.isEmpty()) {
-                y += 12;
+                y += SLOT;
                 continue;
             }
             ctx.drawItemWithoutEntity(s, 0, y);
-            if (s.getMaxDamage() > 0) {
-                int left = s.getMaxDamage() - s.getDamage();
-                int color = left * 4 > s.getMaxDamage() ? 0xFF55FF55 : (left * 2 > s.getMaxDamage() ? 0xFFFFFF55 : 0xFFFF5555);
-                ctx.fill(19, y, 21, y + 16, color);
-                if (percent) ctx.drawText(mc.textRenderer, s.getMaxDamage() - s.getDamage() + "", 23, y + 4, color, true);
+            int max = s.getMaxDamage();
+            if (max > 0) {
+                int left = max - s.getDamage();
+                // Farbe wie gehabt nach Fuellstand.
+                int color = left * 4 > max ? 0xFF55FF55 : (left * 2 > max ? 0xFFFFFF55 : 0xFFFF5555);
+                // Balken als echter Fuellstand: die Laenge waechst mit der
+                // Resthaltbarkeit. Vorher stand hier ein 2 x 16 grosser
+                // Vollrechteck - der sah wie ein fremder Streifen aus und
+                // sagte nichts ueber den Zustand aus.
+                int trackX = 18, trackW = 2, trackY = y + 1, trackH = 14;
+                ctx.fill(trackX, trackY, trackX + trackW, trackY + trackH, 0x60000000);
+                int fuell = Math.max(1, Math.round(trackH * (left / (float) max)));
+                // Fuellstand von unten nach oben fuellen, wie in Minecraft ueblich.
+                ctx.fill(trackX, trackY + trackH - fuell, trackX + trackW, trackY + trackH, color);
+                if (percent) {
+                    int pct = Math.round(left * 100f / max);
+                    ctx.drawText(mc.textRenderer, pct + "%", trackX + trackW + 2, y + 4, color, true);
+                }
             }
-            y += 12;
+            y += SLOT;
         }
-        return y;
+        ms.pop();
+        // Hoehe in unskalierten Pixeln zurueckgeben, damit der Kasten passt.
+        return Math.round(y * sc);
     }
 
     private static int potionList(DrawContext ctx, MinecraftClient mc, Module m) {
@@ -379,11 +413,43 @@ public final class HudRenderer {
             return new int[]{right - w, cy - h / 2, w, h};
         }
         List<String> lines = lines(m, mc);
+        if (lines.isEmpty()) {
+            // Kein Textmodul. Die Zeichner hier sind aber Icon- und
+            // Balkenmodule, und die haben ueberhaupt keine Textzeilen.
+            //
+            // Vorher fielen sie auf 8 x 10 Pixel zurueck: der Kasten im Editor
+            // war also winzig, lag meistens ausserhalb des sichtbaren Bereichs
+            // und liess sich praktisch nicht greifen. Deshalb bekommen sie
+            // hier ihre tatsaechliche Groesse.
+            int[] rahmen = iconRahmen(id);
+            return new int[]{(int) m.x, (int) m.y,
+                    (int) Math.round(rahmen[0] * m.scale), (int) Math.round(rahmen[1] * m.scale)};
+        }
         int textW = 0;
         for (String l : lines) textW = Math.max(textW, mc.textRenderer.getWidth(l.startsWith("~c") && l.length() > 3 ? l.substring(3) : l));
         int w = Math.max(8, textW);
         int h = Math.max(10, lines.size() * 10);
         return new int[]{(int) m.x, (int) m.y,
                 (int) Math.round(w * m.scale), (int) Math.round(h * m.scale)};
+    }
+
+    /**
+     * Aussenmasse der Icon- und Balkenmodule: { breite, hoehe } in Pixeln,
+     * ohne Skalierung.
+     *
+     * Werden sie groesser, muss hier nachgezogen werden - sonst passt der
+     * Rahmen im Editor nicht mehr auf das, was tatsaechlich gezeichnet wird.
+     */
+    private static int[] iconRahmen(String id) {
+        switch (id) {
+            case "armorhud": return new int[]{44, 64};      // 4 Slots + Prozent
+            case "armorstatus": return new int[]{22, 44};   // 4 Fuellstaende
+            case "keystrokes": return new int[]{54, 40};    // WASD + Maus
+            case "potionstatus": return new int[]{24, 88};   // Liste
+            case "itemcounter": return new int[]{60, 54};   // Liste
+            case "helditem": return new int[]{24, 24};      // ein Icon
+            case "splitchat": return new int[]{160, 120};   // Chatfenster
+            default: return new int[]{80, 20};
+        }
     }
 }

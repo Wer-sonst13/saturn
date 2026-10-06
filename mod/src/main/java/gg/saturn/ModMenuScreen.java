@@ -59,7 +59,10 @@ public class ModMenuScreen extends Screen {
                     case 1 -> ConfigStore.save();
                     case 2 -> mc.setScreen(new SaturnMenuScreen(this));
                     case 3 -> mc.setScreen(new ChatUtilsScreen(this));
-                    case 4 -> mc.setScreen(new HudEditorScreen(this));
+                    // Position 4 war der eigene Editor-Bildschirm. Der Editor
+                    // gehoert jetzt in den Hub (F6 dort), deshalb faellt der
+                    // Knopf ersatzlos weg.
+                    case 4 -> { }
                 }
                 return true;
             }

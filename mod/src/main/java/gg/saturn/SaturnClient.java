@@ -77,11 +77,11 @@ public class SaturnClient {
                 menuIsOpen = true;
                 mc.setScreen(new HubScreen(mc.currentScreen));
             }
-            // F6 oeffnet den Editor nur noch, wenn NICHT der Hub offen ist.
-            // Im Hub schaltet dieselbe Taste den Editor-Modus ein und aus.
+            // F6 gehoert jetzt dem Hub: dort schaltet es den Editor-Modus ein und aus.
+            // Der alte eigene Editor-Bildschirm ist damit ueberfluessig - er
+            // waere ein zweiter Weg in denselben Editor.
             while (editorKey.wasPressed()) {
-                if (mc.currentScreen instanceof HubScreen) break;
-                mc.setScreen(new HudEditorScreen(mc.currentScreen));
+                // nichts tun: der Hub verarbeitet die Taste selbst
             }
             while (chatUtilsKey.wasPressed()) {
                 mc.setScreen(new ChatUtilsScreen(mc.currentScreen));

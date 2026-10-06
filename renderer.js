@@ -154,8 +154,6 @@ function loop(t) {
 
 // ---------------------------------------------------------------- Vorschläge
 const SUGGESTED = [
-  ["fabric-api", "Fabric API", "library"],
-  ["sodium", "Sodium", "optimization"],
   ["lithium", "Lithium", "optimization"],
   ["modmenu", "Mod Menu", "utility"],
   ["iris", "Iris Shaders", "decoration"],
@@ -366,7 +364,8 @@ function renderMods() {
   $("modList").innerHTML = list2.length ? list2.map((f) => `
     <div class="mrow ${f.on ? "" : "off"}">
       <div class="mn"><b>${esc(f.name)}</b><small>${esc(f.version || f.file)}</small>
-        ${f.file === "saturn.jar" ? '<span class="lock">Saturn-Mod</span>' : ""}</div>
+        ${f.file === "saturn.jar" ? '<span class="lock">Saturn-Mod</span>'
+          : f.vorinstalliert ? '<span class="lock">vorinstalliert</span>' : ""}</div>
       <button class="miniBtn" onclick="delMod('${esc(f.file)}')">&#128465;</button>
       <div class="tog ${f.on ? "on" : ""}" onclick="toggleMod('${esc(f.file)}',${!f.on})"></div>
     </div>`).join("") : '<div class="info">Keine Mods installiert.</div>';
@@ -455,9 +454,11 @@ async function openCreate() {
   openModal("Neues Profil",
     `<div class="frow"><label>Name</label><input type="text" id="nm" value="NL"></div>
      <div class="frow"><label>Minecraft</label><select id="mcv">${versions.map((v) => `<option${v === SATURN_VORBEUGUNG ? " selected" : ""}>${v}</option>`).join("")}</select></div>
-     <p class="info">Empfohlene Mods (anklicken zum Abwählen):</p>
+     <p class="info">Zusätzliche Mods (anklicken zum Abwählen):</p>
      <div class="modPick" id="pickBox">${rows}</div>
-     <p class="info">Die Saturn-Mod (Menü, HUD-Editor, Scoreboard) wird für ${saturnVersionen().join(", ")} automatisch mitinstalliert.</p>`,
+     <p class="info">Immer dabei: <b>Saturn-Mod</b>, Fabric API, Sodium, Nametags und Fullbright.
+       Die Saturn-Mod (Menü, HUD-Editor, Scoreboard) gibt es für
+       ${saturnVersionen().join(", ")}.</p>`,
     "Erstellen", async () => {
       const mods = [...document.querySelectorAll("#pickBox .pick.on")].map((e) => e.dataset.slug);
       const name = $("nm").value.trim() || "NL";
@@ -747,6 +748,7 @@ function luminance(hex) {
 
   await load();
   fillCats();
+  setupFensterKnoepfe();
   setInterval(refreshStatus, 2000);
 })();
 
@@ -754,4 +756,42 @@ async function logout() {
   await ipc.invoke("logout");
   toast("Abgemeldet");
   location.reload();
+}
+
+// ------------------------------------------------------------ Fensterknöpfe
+// Das Fenster hat keinen Rahmen, die Knöpfe zeichnet die Seite selbst.
+// "min", "max" und "close" macht das Hauptfenster, weil die Seite mit
+// nodeIntegration keinen Zugriff auf BrowserWindow hat.
+function winAktion(aktion) {
+  ipc.invoke("win", aktion).catch(() => {});
+}
+
+/**
+ * Hält das Zeichen des Maximieren-Knopfes passend zum Zustand: Quadrat, solange
+ * das Fenster normal ist, und zwei übereinander, wenn es zurück in die normale
+ * Größe soll. Das Hauptfenster meldet den Wechsel, damit auch ein Maximieren
+ * per Doppelklick auf die Kopfzeile das Zeichen mitändert.
+ */
+function setupFensterKnoepfe() {
+  const knopf = $("wkMax");
+  if (!knopf) return;
+  const uebertragen = (z) => {
+    if (!z) return;
+    const gross = z.maximized || z.fullScreen;
+    knopf.dataset.stand = gross ? "restore" : "maximize";
+    knopf.title = gross ? "Wiederherstellen" : "Vergrößern";
+    knopf.setAttribute("aria-label", knopf.title);
+  };
+  uebertragen({ maximized: false, fullScreen: false });
+  ipc.invoke("winState").then(uebertragen).catch(() => {});
+  ipc.on("winState", (_e, z) => uebertragen(z));
+
+  // Doppelklick auf die Kopfzeile (aber nicht auf die Knöpfe) schaltet gross/klein
+  const kopf = document.querySelector("header");
+  if (kopf) {
+    kopf.addEventListener("dblclick", (e) => {
+      if (e.target.closest("button, .pill")) return;
+      winAktion("toggle");
+    });
+  }
 }

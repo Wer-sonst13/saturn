@@ -127,18 +127,51 @@ public abstract class SaturnScreen extends Screen {
     private static final int SATURN_MAX_GUI = 3;
     private static int gespeicherteSkalierung = -1;
 
-    /** Setzt die GUI-Skalierung herunter, falls sie zu gross ist. */
+    /**
+     * Setzt die GUI-Skalierung auf einen Wert, bei dem das Menue scharf bleibt.
+     *
+     * Nicht einfach auf SATURN_MAX_GUI begrenzen: die Skalierung wirkt als
+     * Teiler der Bildschirmbreite, und Minecraft rundet dabei ab. Bei einer
+     * Breite, die durch den gewaehlten Wert nicht glatt teilbar ist, entsteht
+     * ein Rest, den Minecraft zusaetzlich auf einmal Pixel rundet - und genau
+     * dieser eine Pixel Versatz macht die Pixelbuchstaben unscharf. Deshalb
+     * wird der groesste Wert gesucht, der die Breite glatt teilt.
+     */
     private void skalierungBegrenzen() {
         net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
         if (mc == null || mc.options == null) return;
         net.minecraft.client.option.SimpleOption<Integer> opt = mc.options.getGuiScale();
         if (opt == null) return;
+
         int jetzt = opt.getValue();
-        if (jetzt <= SATURN_MAX_GUI) return;
-        // Nur beim ersten Mal sichern - init() laeuft beim Wechsel der
-        // Fenstergroesse mehrfach durch.
+        int fensterBreite = mc.getWindow().getScaledWidth() * jetzt;
+        int ziel = guenstigsteSkalierung(fensterBreite);
+        if (ziel >= jetzt) return;
         if (gespeicherteSkalierung < 0) gespeicherteSkalierung = jetzt;
-        opt.setValue(SATURN_MAX_GUI);
+        opt.setValue(ziel);
+    }
+
+    /**
+     * Der beste GUI-Faktor fuer eine Fensterbreite.
+     *
+     * Gesucht wird der groesste Wert von SATURN_MAX_GUI abwaerts bis 1, bei
+     * dem die Breite ohne Rest teilbar ist. Ein Rest ist genau das, was die
+     * Buchstaben unscharf macht. Passt kein Wert, wird der Faktor genommen, der
+     * der Breite am naechsten kommt - unscharf ist dann zwar moeglich, aber
+     * niemals so schlimm wie bei 4.
+     */
+    private static int guenstigsteSkalierung(int fensterBreite) {
+        int bester = 1;
+        int kleinsterRest = Integer.MAX_VALUE;
+        for (int s = SATURN_MAX_GUI; s >= 1; s--) {
+            int rest = fensterBreite % s;
+            if (rest == 0) return s;                 // geht genau: sofort nehmen
+            if (rest < kleinsterRest) {
+                kleinsterRest = rest;
+                bester = s;
+            }
+        }
+        return bester;
     }
 
     /** stellt die Skalierung des Spielers wieder her. */

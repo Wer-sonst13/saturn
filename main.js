@@ -62,9 +62,12 @@ const supportedMc = () => {
   if (!fs.existsSync(d)) return [];
   return fs
     .readdirSync(d)
-    .map((f) => /^saturn-(.+)\.jar$/.exec(f))
+    .map((f) => /^saturn-(.+?)(?:-[\d.]+)?\.jar$/.exec(f))
     .filter(Boolean)
     .map((m) => m[1])
+    // Nur echte Minecraft-Versionen. Sonst rutscht der alte Dateiname
+    // "saturn-0.1.0.jar" mit in die Liste und die Oberflaeche behauptet,
+    // das Menue gae es fuer Minecraft 0.1.0.
     .filter((v) => /^\d+\.\d+(\.\d+)?$/.test(v))
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 };
@@ -187,11 +190,47 @@ function dirSizeFast(dir) {
 
 app.whenReady().then(() => {
   migrateOldRoot();
+  // Ohne Rahmen: die Knöpfe zum Minimieren, Maximieren und Schliessen zeichnet
+  // die Oberfläche selbst (siehe .winKnöpfe in styles.css). Nur so sitzen sie
+  // in der Leiste neben dem Anmelden statt als graues Windows-Fensterkreuz
+  // oben an der Titelleiste.
   win = new BrowserWindow({
-    width: 1280, height: 800, minWidth: 1024, minHeight: 660, frame: true,
+    width: 1280, height: 800, minWidth: 1024, minHeight: 660,
+    frame: false, titleBarStyle: "hidden",
     backgroundColor: "#050505", autoHideMenuBar: true,
     webPreferences: { nodeIntegration: true, contextIsolation: false },
   });
+
+  // ------------------------------------------------------------ Fensterknöpfe
+  const fensterAktion = (aktion) => {
+    if (!win || win.isDestroyed()) return;
+    switch (aktion) {
+      case "min": win.minimize(); break;
+      case "max":
+        if (win.isMaximized()) win.unmaximize();
+        else win.maximize();
+        break;
+      case "close": win.close(); break;
+      // "toggle" wird vom Doppelklick auf die Kopfzeile benutzt
+      case "toggle":
+        if (win.isMaximized()) win.unmaximize();
+        else win.maximize();
+        break;
+      default: break;
+    }
+    // Der Zustand "maximiert" ändert sich auch, wenn der Spieler das Fenster
+    // per Doppelklick oder Aufgabe in einen anderen Zustand bringt - die Seite
+    // bekommt es darum über ein Ereignis mitgeteilt.
+  };
+
+  ipcMain.handle("win", (_, aktion) => { fensterAktion(aktion); return true; });
+  ipcMain.handle("winState", () =>
+    win && !win.isDestroyed()
+      ? { maximized: win.isMaximized(), fullScreen: win.isFullScreen() }
+      : { maximized: false, fullScreen: false });
+
+  // Ziehen am oberen Rand: die rahmenlose Seite kann das Fenster sonst nicht
+  // bewegen. -webkit-app-region: drag steht dafür in styles.css.
   win.loadFile("index.html");
   // Versionsnummer fuer die Fusszeile (renderer.js liest window.saturnVersion).
   // Muss nach dem Laden gesetzt werden: erst dann existiert das Fenster-DOM.
@@ -207,6 +246,26 @@ app.whenReady().then(() => {
   // Kein zweites Fenster: die Min-/Schliessen-Knoepfe der Seite sind nur Deko,
   // das echte Fenstermanagement macht Electron.
   win.webContents.on("did-create-window", () => {});
+
+  // Der Knopf zum Wechseln zwischen Vollbild und Fenster heisst je nach Zustand
+  // anders. Damit die Seite das anzeigen kann, bekommt sie jedes Mal Bescheid,
+  // wenn sich der Zustand aendert - auch wenn der Spieler das Fenster mit der
+  // Windows-Taste oder ueber den Taskleisten-Vorschau verschiebt.
+  const zustandMelden = (label) => {
+    if (!win || win.isDestroyed()) return;
+    const zustand = win.isMaximized() || win.isFullScreen();
+    win.webContents.send("winState", {
+      maximized: zustand,
+      fullScreen: win.isFullScreen(),
+      // "restore" = zurück in die normale Grösse, "maximize" = gross machen
+      label: zustand ? "restore" : "maximize",
+    });
+  };
+  win.on("maximize", () => zustandMelden("max"));
+  win.on("unmaximize", () => zustandMelden("unmax"));
+  win.on("enter-full-screen", () => zustandMelden("fs"));
+  win.on("leave-full-screen", () => zustandMelden("leaffs"));
+  win.webContents.on("did-finish-load", () => zustandMelden("start"));
   if (app.isPackaged) {
     autoUpdater.on("update-available", () => log("Update gefunden, wird geladen ..."));
     autoUpdater.on("update-downloaded", () => autoUpdater.quitAndInstall());
@@ -247,17 +306,34 @@ ipcMain.handle("create", async (_, { name, mc, mods }) => {
   const dir = path.join(INST, id, "mods");
   fs.mkdirSync(dir, { recursive: true });
   const files = [];
-  await installMods(mc, dir, mods, files);
+
+  // Erst die, die der Spieler angeklickt hat, dann die vorinstallierten.
+  // Mitinstalliert wird alles in einem Rutsch, damit die Abhaengigkeiten
+  // (Sodium braucht z. B. noch etwas) zusammen aufloesen und nicht doppelt
+  // geladen werden.
+  const gewaehlt = (mods || []).filter((m) => !vorinstalliertSlugs().includes(m));
+  await installMods(mc, dir, gewaehlt.concat(vorinstalliertSlugs()), files);
+  // installMods merkt sich Namen und Version aus Modrinth, aber nicht, dass
+  // eine Mod vorinstalliert ist - das hier nachziehen.
+  for (const slug of vorinstalliertSlugs()) alsVorinstalliertMerken(files, slug);
 
   const list = read();
   const inst = {
     id, name, mc, loader, versionId: prof.id,
     created: Date.now(), lastPlayed: 0, playtime: 0,
-    installed: mods || [],
+    // installiert merkt alle Modrinth-Projekte, die im Ordner liegen -
+    // die angeklickten und die vorinstallierten. Sonst wuerden die
+    // vorinstallierten beim naechsten Aufruf als "nicht installiert"
+    // gelten und noch einmal geladen.
+    installed: gewaehlt.concat(vorinstalliertSlugs()),
     files,
   };
   list.unshift(inst);
   write(list);
+
+  // Die Saturn-Mod kommt als letztes: sie gehoert zum Programm und wird
+  // bei jedem Start einsortiert (siehe syncMod), auch in Profile, die
+  // nachtraeglich angelegt wurden.
   syncMod(inst);
   return list;
 });
@@ -368,6 +444,12 @@ ipcMain.handle("launch", async (_, { id, ram }) => {
   if (!inst) throw new Error("Instanz nicht gefunden.");
   syncMod(inst);
 
+  // Fehlt eine der vorinstallierten Mods - etwa weil sie abgeschaltet wurde
+  // oder das Profil aus einer aelteren Version des Launchers stammt -, wird
+  // sie vor dem Start nachgeholt. Sonst faellt die Fabric-API auf und der
+  // Client laedt gar nicht erst.
+  await fehlendeVorinstallierteNachladen(inst);
+
   const l = new Client();
   const push = (m) => perInstance(id, String(m));
 
@@ -464,6 +546,76 @@ ipcMain.handle("logs", (_, id) => {
   return r ? r.log : [];
 });
 
+// ------------------------------------------------------ Vorinstallierte Mods
+
+/**
+ * Mods, die in jedem neuen Profil automatisch landen.
+ *
+ * Das sind allesamt Mods, ohne die der Client entweder nicht lauffaehig ist
+ * (Fabric API fehlt -> der Client laedt gar nicht erst) oder bei denen man
+ * sich staendig etwas einstellt (Fullbright, Nametags, Sodium).
+ *
+ * Wichtig: `version` ist bewusst weggelassen. Modrinth liefert dann die
+ * neueste Fassung, die zur jeweiligen Minecraft-Version passt - sonst
+ * muesste hier fuer jede Minecraft-Version eine eigene Nummer stehen, und
+ * ein neues Spielrelease wuerde das hier sofort wieder veralten lassen.
+ */
+const VORINSTALLIERT = [
+  { slug: "P7dR8mSH", name: "Fabric API" },        // Pflicht, sonst laeuft nichts
+  { slug: "sodium", name: "Sodium" },
+  { slug: "third-person-nametags", name: "Nametags" },
+  { slug: "fullbright", name: "Fullbright" },
+];
+
+/** Die Kennungen der vorinstallierten Mods, wie installMods sie braucht. */
+const vorinstalliertSlugs = () => VORINSTALLIERT.map((m) => m.slug);
+
+/** Merkt eine Mod als vorinstalliert, damit die Liste das zeigen kann. */
+function alsVorinstalliertMerken(files, slug) {
+  if (!files) return;
+  const e = files.find((f) => f.slug === slug);
+  if (e) e.vorinstalliert = true;
+}
+
+/**
+ * Holt die vorinstallierten Mods nach, die im Profil fehlen.
+ *
+ * Ein Profil kann sie verlieren, wenn der Spieler eine Mod abschaltet (sie
+ * wandert dann nach mods-off) oder wenn es aus einer aelteren Launcher-
+ * Version stammt. Beides ist unkritisch und wird hier in Ruhe nachgeholt -
+ * ein Fehler bricht den Start nicht ab, sonst waere ein Profil nach einem
+ * kurzen Netzausfall nicht mehr startbar.
+ */
+async function fehlendeVorinstallierteNachladen(inst) {
+  const dir = path.join(INST, inst.id, "mods");
+  if (!fs.existsSync(dir)) return;
+  const dateien = new Set(fs.readdirSync(dir));
+  const fehlen = VORINSTALLIERT.filter((m) => {
+    const e = (inst.files || []).find((f) => f.slug === m.slug);
+    // Kein Eintrag in files heisst "noch nie geladen". Ein Eintrag zaehlt
+    // als vorhanden, wenn eine Datei mit dem Namen wirklich da liegt -
+    // sonst waeren die Dateinamen aus einer anderen Modrinth-Fassung falsch.
+    if (!e) return true;
+    return !dateien.has(e.file);
+  });
+  if (!fehlen.length) return;
+  log(`- ${fehlen.length} vorinstallierte Mod fehlt, wird nachgeladen: ` +
+      fehlen.map((m) => m.name).join(", "));
+  const files = inst.files || (inst.files = []);
+  await installMods(inst.mc, dir, fehlen.map((m) => m.slug), files);
+  for (const m of fehlen) alsVorinstalliertMerken(files, m.slug);
+  if (!inst.installed) inst.installed = [];
+  for (const m of fehlen) {
+    if (!inst.installed.includes(m.slug)) inst.installed.push(m.slug);
+  }
+  const alle = read();
+  const pos = alle.findIndex((i) => i.id === inst.id);
+  if (pos >= 0) {
+    alle[pos] = { ...alle[pos], files, installed: inst.installed };
+    write(alle);
+  }
+}
+
 // --------------------------------------------------------- Mod-Verwaltung
 
 /**
@@ -523,6 +675,8 @@ ipcMain.handle("modList", (_, id) => {
         name: m ? m.name : baseName(f),
         version: m ? m.version : verOf(f),
         on,
+        // damit die Liste "vorinstalliert" anzeigen kann
+        vorinstalliert: !!(m && m.vorinstalliert),
       });
     }
   };

@@ -126,6 +126,39 @@ header {
 .brand b { font-size: 15px; letter-spacing: .3px; }
 .ver { font-size: 10px; color: var(--tx-dim); }
 
+/* --------------------------------------------------------- Fensterknöpfe
+   Das Fenster hat keinen Rahmen (frame: false), damit diese Knöpfe in der
+   Leiste neben dem Anmelden sitzen. -webkit-app-region: drag macht die
+   Kopfzeile zum Griff, damit man das Fenster verschieben kann; die Knöpfe
+   selbst dürfen das nicht, sonst lassen sie sich nicht klicken. */
+header { -webkit-app-region: drag; }
+header button, header .pill, header .winKnöpfe { -webkit-app-region: no-drag; }
+header .sp { -webkit-app-region: drag; height: 100%; }
+
+.winKnöpfe { display: flex; align-items: center; gap: 2px; margin-left: 6px; }
+.wk {
+  width: 42px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 8px; background: transparent;
+  color: var(--tx-dim); font-size: 17px; line-height: 1;
+  cursor: pointer; transition: background .12s, color .12s;
+  font-family: "Inter", "Segoe UI", sans-serif;
+}
+.wk:hover { background: var(--pn); color: var(--tx); }
+.wkClose:hover { background: #d93a3a; color: #fff; }
+.wk svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.3; }
+/* Maximiert: statt des Quadrats zwei uebereinander - das Zeichen für
+   "zurück in die normale Größe". */
+.wk[data-stand="restore"] svg { display: none; }
+.wk[data-stand="restore"]::before,
+.wk[data-stand="restore"]::after {
+  content: ""; position: absolute; width: 8px; height: 8px;
+  border: 1.3px solid currentColor; border-radius: 1px;
+}
+.wk[data-stand="restore"]::before { transform: translate(-2px, -2px); }
+.wk[data-stand="restore"]::after  { transform: translate(2px, 2px); }
+.wk[data-stand="restore"] { position: relative; }
+
 .pill {
   display: flex; align-items: center; gap: 8px;
   background: var(--pn); border: 1px solid var(--bd);

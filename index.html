@@ -28,6 +28,16 @@
       <span class="dot"></span><span id="instCount">0 Instanz</span>
     </button>
     <button class="pill" id="accBtn" onclick="login()"><span id="accName">Anmelden</span></button>
+
+    <!-- Fensterknöpfe: das Fenster hat keinen Rahmen, damit sie hier in der
+         Leiste sitzen statt als graues Kreuz über der Titelleiste. -->
+    <div class="winKnöpfe">
+      <button class="wk" id="wkMin" title="Minimieren" aria-label="Minimieren" onclick="winAktion('min')">&#x2013;</button>
+      <button class="wk" id="wkMax" title="Vergrößern" aria-label="Vergrößern" onclick="winAktion('max')">
+        <svg viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="1" width="8" height="8"/></svg>
+      </button>
+      <button class="wk wkClose" id="wkClose" title="Schließen" aria-label="Schließen" onclick="winAktion('close')">&times;</button>
+    </div>
   </header>
 
   <div class="drop" id="instDrop"></div>

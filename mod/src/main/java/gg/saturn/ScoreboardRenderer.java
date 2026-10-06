@@ -16,7 +16,7 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Zeichnet das Scoreboard selbst, damit Hintergrund, Ecken, Grösse,
+ * Zeichnet das Scoreboard selbst, damit Hintergrund, Ecken, Groesse,
  * Zahlen, Abstand und Position wirklich frei einstellbar sind.
  */
 public final class ScoreboardRenderer {
@@ -26,23 +26,20 @@ public final class ScoreboardRenderer {
     /**
      * Eine Zeile des Scoreboards.
      *
-     * Frueher lagen Name, Zahl, Text und Farbe in vier parallelen Listen und
-     * wurden ueber den Index zugeordnet. Sobald eine davon nicht passte, kam
-     * mitten im Zeichnen ein Fehler heraus.
+     * Text, Farbe und Punktzahl gehoeren zusammen. Frueher lagen sie in vier
+     * parallelen Listen und wurden ueber den Index zugeordnet; ein einziger
+     * Versatz darin liess die Zeichenroutine mitten im Bild abbrechen.
      *
-     * WICHTIG: der Text kommt aus entry.owner(), nicht aus entry.name().
-     * name() lieferte bei diesem Server leeren Text - es erschienen nur die
-     * gruenen Zahlen, aber keine einzige Beschriftung.
-     *
-     * Ausserdem kann ein Eintrag mehrere Zeilen enthalten (Umbruch im Text).
-     * Die stehen als Umbruchzeichen im Namen und muessen von Hand
-     * untereinander gezeichnet werden - drawText ignoriert sie sonst still.
+     * "teile" ist ein Array, weil ein Eintrag mehrere Zeilen haben kann
+     * (Umbruche im Namen). drawText bricht nicht um, also muessen die Teile
+     * einzeln gezeichnet werden.
      */
     private static final class Zeile {
-        final String[] teile;
+        final Text[] teile;
         final int farbe;
         final int score;
-        Zeile(String[] teile, int farbe, int score) {
+
+        Zeile(Text[] teile, int farbe, int score) {
             this.teile = teile;
             this.farbe = farbe;
             this.score = score;
@@ -63,7 +60,7 @@ public final class ScoreboardRenderer {
         float scale = (float) Math.max(0.3, mod.num("scale", 1.0));
         int forcedW = mod.numInt("width", 0);
         int forcedH = mod.numInt("height", 0);
-        boolean numbers = mod.flag("showNumbers", true);
+        boolean numbers = mod.flag("showNumbers", false);
         boolean shadow = mod.flag("fontShadow", true);
         boolean dynamic = mod.flag("dynamicPadding", true);
         boolean corners = mod.flag("corners", false);
@@ -71,38 +68,32 @@ public final class ScoreboardRenderer {
         String bgKind = mod.choice("background", "VANILLA");
         int customBg = mod.color("bgColor", 0xB0000000);
 
-        // Zeilen sammeln. ScoreboardEntry ist seit 1.21 ein Record mit owner()
-        // und value() und implementiert KEIN ScoreHolder.
         List<Zeile> zeilen = new ArrayList<>();
         try {
+            // ScoreboardEntry ist seit 1.21 ein Record mit owner() und value()
+            // und implementiert KEIN ScoreHolder.
             for (ScoreboardEntry eintrag : board.getScoreboardEntries(objective)) {
                 if (eintrag == null || eintrag.hidden()) continue;
                 String name = eintrag.owner();
-                if (name == null || name.isEmpty()) continue;
-                // Den Namen des Servers nehmen und an Umbruechen teilen.
-                zeilen.add(new Zeile(name.split("\n", -1),
+                if (name == null || name.isBlank()) continue;
+                zeilen.add(new Zeile(textDerZeile(board, eintrag, name),
                         teamFarbe(board, name, 0xFFFFFFFF), eintrag.value()));
             }
         } catch (Throwable t) {
-            // Nicht einfach schlucken. Ein still verschluckter Fehler fuehrt
-            // dazu, dass gar nichts mehr erscheint und man den Grund nicht
-            // sieht. Im Spiel melden, dann ist es nachlesbar.
+            // Nicht einfach schlucken: ein still verschluckter Fehler laesst
+            // das ganze Scoreboard weg, ohne dass man den Grund sieht.
             System.err.println("[Saturn] Scoreboard-Eintraege nicht lesbar: " + t);
             return;
         }
         if (zeilen.isEmpty()) return;
 
-        // absteigend nach Punktzahl, bei Gleichstand stabil nach Namen.
-        //
-        // Der Server benutzt die Punktzahl als Reihenfolge (10, 9, 8 ...),
-        // deshalb wird danach sortiert. Sonst kaemen die Zeilen in der
+        // Viele Server benutzen die Punktzahl nur als Reihenfolge (10, 9, 8,
+        // ...). Deshalb danach sortieren, sonst kaemen die Zeilen in der
         // Reihenfolge des Empfangs statt in der des Servers.
         List<Zeile> sortiert = new ArrayList<>(zeilen);
         sortiert.sort(Comparator.comparingInt((Zeile z) -> -z.score)
-                .thenComparing(z -> z.teile[0]));
+                .thenComparing(z -> z.teile[0].getString()));
 
-        // Titel als Text behalten: getString() liefert die §-Codes roh mit,
-        // und die werden seit 1.21 nicht mehr als Formatierung erkannt.
         Text titel = objective.getDisplayName();
         if (titel == null) titel = Text.literal("");
 
@@ -113,18 +104,17 @@ public final class ScoreboardRenderer {
 
         int contentW = tr.getWidth(titel);
         int maxNumW = 0;
-        int zeilenH = 0;
+        int bodyH = 0;
         for (Zeile z : sortiert) {
-            for (String teil : z.teile) contentW = Math.max(contentW, tr.getWidth(teil));
-            zeilenH += z.teile.length * rowH;
+            for (Text teil : z.teile) contentW = Math.max(contentW, tr.getWidth(teil));
+            bodyH += z.teile.length * rowH;
             maxNumW = Math.max(maxNumW, tr.getWidth(String.valueOf(z.score)));
         }
         if (numbers) contentW += maxNumW + 4;
 
         int w = forcedW > 0 ? forcedW : contentW + pad * 2;
-        int h = forcedH > 0 ? forcedH : titleH + zeilenH + pad;
+        int h = forcedH > 0 ? forcedH : titleH + bodyH + pad;
 
-        // rechts verankert, vertikal mittig
         int right = scaledWidth + (int) mod.x;
         int top = mc.getWindow().getScaledHeight() / 2 + (int) mod.y - h / 2;
         int left = right - w;
@@ -158,43 +148,75 @@ public final class ScoreboardRenderer {
             y += titleH;
 
             for (Zeile z : sortiert) {
-                // Jeden Teil einzeln zeichnen: ein Eintrag kann mehrere Zeilen
-                // haben, und drawText bricht nicht um.
-                int numBreite = numbers ? tr.getWidth(String.valueOf(z.score)) : 0;
-                for (String teil : z.teile) {
+                for (Text teil : z.teile) {
                     ctx.drawText(tr, teil, pad, y, z.farbe, shadow);
-                    if (numbers) {
-                        // Die Zahl sitzt an der oberen Zeile des Eintrags.
-                        ctx.drawText(tr, String.valueOf(z.score),
-                                w - pad - numBreite, y, 0xFF55FF55, shadow);
-                    }
                     y += rowH;
+                }
+                if (numbers) {
+                    // Die Zahl sitzt neben der ersten Zeile des Eintrags.
+                    String num = String.valueOf(z.score);
+                    ctx.drawText(tr, num, w - pad - maxNumW, pad + titleH, 0xFF55FF55, shadow);
                 }
             }
         } finally {
-            // pop() gehoert in ein finally: sonst blieb die Matrix verschoben,
-            // wenn mitten im Zeichnen etwas flog - und dann saessen alle
-            // folgenden HUD-Elemente an der falschen Stelle.
+            // pop() gehoert in ein finally: sonst bliebe die Matrix
+            // verschoben, wenn mitten im Zeichnen etwas flog.
             ms.pop();
         }
     }
 
     /**
-     * Farbe des Teams eines Spielers, sonst {@code fallback}.
+     * Baut den Text einer Zeile.
      *
-     * Wichtig: nicht {@code team.getPrefix().getString()}. Seit 1.21 steckt in
-     * einem per getString() geholten Text kein Formatierungs-Parser mehr -
-     * die §-Codes standen deshalb als Buchstaben im Bild und die Farben
-     * fehlten. Die Farbe holt man sich hier direkt aus dem Team.
+     * Manche Server schreiben die Zeile in den Team-Ueberschreiben und
+     * lassen owner() leer oder als Rangnummer stehen. Deshalb wird
+     * beides geprueft.
+     *
+     * Wichtig: getString() niemals fuer die Anzeige benutzen. Seit 1.21
+     * steckt in einem geholten String kein Formatierungs-Parser mehr - die
+     * §-Codes stuenden dann als Buchstaben im Bild und die Farben fehlten.
      */
-    private static int teamFarbe(Scoreboard board, String name, int fallback) {
+    private static Text[] textDerZeile(Scoreboard board, ScoreboardEntry eintrag, String name) {
+        Text eigener = eintrag.name();
+        String roh = eigener != null ? eigener.getString() : name;
+
+        String beitrag = "";
         try {
             Team team = board.getScoreHolderTeam(name);
-            if (team == null) return fallback;
+            if (team != null) {
+                beitrag = team.getPrefix().getString() + team.getSuffix().getString();
+            }
+        } catch (Throwable ignoriert) {
+            // dann eben ohne Team
+        }
+
+        List<Text> fertig = new ArrayList<>();
+        for (String teil : roh.split("\n", -1)) {
+            String s = teil;
+            if (s.isBlank()) {
+                if (beitrag.isBlank()) continue;   // wirklich leere Zeile
+                s = beitrag;
+            }
+            if (s.isBlank()) continue;
+            fertig.add(Text.literal(s));
+        }
+        if (fertig.isEmpty()) {
+            fertig.add(Text.literal(beitrag.isBlank() ? name : beitrag));
+        }
+        return fertig.toArray(new Text[0]);
+    }
+
+    /**
+     * Farbe des Teams eines Spielers, sonst der Ersatzwert.
+     */
+    private static int teamFarbe(Scoreboard board, String name, int ersatz) {
+        try {
+            Team team = board.getScoreHolderTeam(name);
+            if (team == null) return ersatz;
             Formatting f = team.getColor();
-            return f == null ? fallback : 0xFF000000 | f.getColorValue();
+            return f == null ? ersatz : 0xFF000000 | f.getColorValue();
         } catch (Throwable t) {
-            return fallback;
+            return ersatz;
         }
     }
 }

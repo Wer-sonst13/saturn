@@ -7,8 +7,8 @@ import java.util.Map;
 
 /**
  * Alle Module des Saturn-Clients.
- * Reihenfolge = Reihenfolge im Menü. Jedes Modul lässt sich ein-/ausschalten,
- * die HUD-Module zusätzlich im HUD-Editor verschieben und skalieren.
+ * Reihenfolge = Reihenfolge im MenÃ¼. Jedes Modul lÃ¤sst sich ein-/ausschalten,
+ * die HUD-Module zusÃ¤tzlich im HUD-Editor verschieben und skalieren.
  */
 public final class Modules {
 
@@ -208,7 +208,7 @@ public final class Modules {
                 .add(Setting.bool("dynamicPadding", "Dynamic Padding", true))
                 .add(Setting.integer("width", "Width", 0, 0, 500, 1))
                 .add(Setting.integer("height", "Height", 0, 0, 500, 1))
-                .add(Setting.bool("showNumbers", "Show Numbers", true))
+                .add(Setting.bool("showNumbers", "Show Numbers", false))
                 .add(Setting.bool("fontShadow", "Font Shadow", true))
                 .add(Setting.bool("hideScoreboard", "Hide Scoreboard", false)));
 
@@ -267,8 +267,8 @@ public final class Modules {
                 "MISC", "planet", false, false, false));
     }
 
-    /** Anzahl aller Module - für die Kopfzeile im Menü. */
-    /** Die Kategorienamen in der Reihenfolge, in der sie im Menü erscheinen. */
+    /** Anzahl aller Module - fÃ¼r die Kopfzeile im MenÃ¼. */
+    /** Die Kategorienamen in der Reihenfolge, in der sie im MenÃ¼ erscheinen. */
     public static java.util.List<String> categories() {
         return Module.categories();
     }
@@ -277,7 +277,7 @@ public final class Modules {
         return Module.all().size();
     }
 
-    /** Alle Module, die im Spiel als HUD-Element sichtbar platziert werden können. */
+    /** Alle Module, die im Spiel als HUD-Element sichtbar platziert werden kÃ¶nnen. */
     public static java.util.List<Module> hudModules() {
         java.util.List<Module> out = new java.util.ArrayList<>();
         for (Module m : Module.all()) if (m.hud) out.add(m);
@@ -307,3 +307,4 @@ public final class Modules {
         return p;
     }
 }
+

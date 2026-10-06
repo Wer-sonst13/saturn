@@ -23,6 +23,9 @@ public final class ScoreboardRenderer {
 
     private ScoreboardRenderer() {}
 
+    /** Objectives, fuer die schon gemeldet wurde. */
+    private static final java.util.Set<String> diagnoseGemeldet = new java.util.HashSet<>();
+
     /**
      * Eine Zeile des Scoreboards.
      *
@@ -86,6 +89,31 @@ public final class ScoreboardRenderer {
             return;
         }
         if (zeilen.isEmpty()) return;
+
+        // Einmalige Diagnose: was schickt der Server wirklich?
+        //
+        // Nach mehreren Fehlversuchen ist die Vermutung nicht mehr wert als
+        // eine Messung. Es wird genau einmal je Objective gemeldet, nicht in
+        // jedem Bild - sonst fuellt das die Log voll.
+        if (!diagnoseGemeldet.contains(objective.getName())) {
+            diagnoseGemeldet.add(objective.getName());
+            System.err.println("[Saturn] Scoreboard '" + objective.getName() + "' mit "
+                    + zeilen.size() + " Eintraegen");
+            int n = 0;
+            for (ScoreboardEntry e : board.getScoreboardEntries(objective)) {
+                if (e == null || n >= 6) continue;
+                Team t = board.getScoreHolderTeam(e.owner());
+                System.err.println("   [" + n + "] owner='" + e.owner()
+                        + "' name='" + (e.name() == null ? "null" : e.name().getString())
+                        + "' wert=" + e.value()
+                        + " team=" + (t == null ? "keins" : t.getName())
+                        + " prefix='" + (t == null ? "" : t.getPrefix().getString())
+                        + "' suffix='" + (t == null ? "" : t.getSuffix().getString())
+                        + "' teamFarbe=" + (t == null || t.getColor() == null ? "keine"
+                                : t.getColor() + "/" + Integer.toHexString(t.getColor().getColorValue())));
+                n++;
+            }
+        }
 
         // Viele Server benutzen die Punktzahl nur als Reihenfolge (10, 9, 8,
         // ...). Deshalb danach sortieren, sonst kaemen die Zeilen in der

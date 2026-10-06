@@ -6,8 +6,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.scoreboard.ScoreHolder;
-import net.minecraft.scoreboard.Team;
+import net.minecraft.text.Text;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -46,6 +45,9 @@ public final class ScoreboardRenderer {
         // Namen sammeln, Punktzahl holen, absteigend sortieren
         List<String> names = new ArrayList<>();
         List<Integer> scores = new ArrayList<>();
+        // Der Anzeigetext kommt unveraendert aus dem Eintrag. Nicht selbst
+        // zusammensetzen!
+        List<Text> texte = new ArrayList<>();
         // ScoreboardEntry ist seit 1.21 ein Record mit owner() und value() und
         // implementiert KEIN ScoreHolder. Die alte Pruefung
         // "instanceof ScoreHolder" traf deshalb nie zu, die Liste blieb leer
@@ -57,6 +59,13 @@ public final class ScoreboardRenderer {
             if (name == null || name.isEmpty()) continue;
             names.add(name);
             scores.add(eintrag.value());
+            // display() traegt Team-Farbe und -Formatierung bereits drin.
+            // Selbst bauen ueber team.getPrefix().getString() liefert seit 1.21
+            // die rohen §-Codes mit - Text.literal() parst die nicht mehr,
+            // also standen die Codes als Buchstaben im Bild und die Farben
+            // fehlten ganz.
+            Text t = eintrag.display();
+            texte.add(t == null ? Text.literal(name) : t);
         }
         if (names.isEmpty()) return;
 
@@ -65,14 +74,17 @@ public final class ScoreboardRenderer {
         order.sort(Comparator.comparingInt((Integer i) -> -scores.get(i)));
 
         TextRenderer tr = mc.textRenderer;
-        String title = objective.getDisplayName().getString();
+        // Auch der Titel als Text behalten. getString() liefert die §-Codes roh mit,
+// und die werden seit 1.21 nicht mehr als Formatierung erkannt.
+        Text titel = objective.getDisplayName();
+        if (titel == null) titel = Text.literal("");
 
         int pad = dynamic ? 2 : 1;
         int titleH = 9;
         int rowH = 9;
 
-        int contentW = tr.getWidth(title);
-        for (int i : order) contentW = Math.max(contentW, tr.getWidth(lineFor(board, names.get(i))));
+        int contentW = tr.getWidth(titel);
+        for (int i : order) contentW = Math.max(contentW, tr.getWidth(texte.get(i)));
         int maxNumW = 0;
         if (numbers) {
             for (int i : order) maxNumW = Math.max(maxNumW, tr.getWidth(String.valueOf(scores.get(i))));
@@ -112,13 +124,14 @@ public final class ScoreboardRenderer {
         ctx.drawBorder(0, 0, w, h, Ui.withAlpha(0xFFFFFF, 0.18f));
 
         int y = pad;
-        ctx.drawText(tr, title, pad, y, 0xFFFFFFFF, shadow);
+        ctx.drawText(tr, titel, pad, y, 0xFFFFFFFF, shadow);
         y += titleH;
 
         for (int i : order) {
-            String name = names.get(i);
             int score = scores.get(i);
-            ctx.drawText(tr, lineFor(board, name), pad, y, 0xFFFFFF, shadow);
+            // Text-Variante: nur so bleibt die Team-Farbe erhalten. Bei einer
+            // String ueberschreibt drawText die Farbe mit dem Parameter.
+            ctx.drawText(tr, texte.get(i), pad, y, 0xFFFFFF, shadow);
             if (numbers) {
                 String num = String.valueOf(score);
                 ctx.drawText(tr, num, w - pad - tr.getWidth(num), y, 0xFF55FF55, shadow);
@@ -127,12 +140,5 @@ public final class ScoreboardRenderer {
         }
 
         ms.pop();
-    }
-
-    /** Team-Präfix + Name + Suffix. */
-    private static String lineFor(Scoreboard board, String name) {
-        Team team = board.getScoreHolderTeam(name);
-        if (team == null) return name;
-        return team.getPrefix().getString() + name + team.getSuffix().getString();
     }
 }

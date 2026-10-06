@@ -83,15 +83,12 @@ public final class Icons {
         if (filled) ctx.fill(x - px, y - px, x + px * (SIZE + 1), y + px * (SIZE + 1), argb(color, 0.28f));
 
         for (int r = 0; r < SIZE; r++) {
-            if (minimal && (r & 1) == 1) continue;
             int c = 0;
             while (c < SIZE) {
-                if (bmp[r].charAt(c) == '#' && (!minimal || (c & 1) == 0)) {
+                if (bmp[r].charAt(c) == '#' && (!minimal || istRand(bmp, r, c))) {
                     int start = c;
-                    while (c < SIZE && bmp[r].charAt(c) == '#' && (!minimal || (c & 1) == 0)) c++;
-                    // bei MINIMAL muss die Lauflänge ungerade bleiben, sonst fehlen Pixel
-                    int len = minimal ? Math.min(c - start, SIZE - start) : c - start;
-                    ctx.fill(x + start * px, y + r * px, x + (start + len) * px, y + (r + 1) * px, color);
+                    while (c < SIZE && bmp[r].charAt(c) == '#' && (!minimal || istRand(bmp, r, c))) c++;
+                    ctx.fill(x + start * px, y + r * px, x + c * px, y + (r + 1) * px, color);
                 } else {
                     c++;
                 }
@@ -102,5 +99,22 @@ public final class Icons {
     public static int argb(int rgb, float alpha) {
         int a = Math.round(255 * Math.max(0f, Math.min(1f, alpha)));
         return (rgb & 0xFFFFFF) | (a << 24);
+    }
+
+    /**
+     * Liegt dieses Pixel am Rand seiner Flaeche?
+     *
+     * Das ist der Kern von "MINIMAL": nur die Kontur zeichnen, die Flaeche
+     * auslassen. Vorher wurde stattdessen jede zweite Zeile und jede zweite
+     * Spalte einfach weggelassen - von einem 9x9-Icon blieben so 25 einzelne
+     * Pixel uebrig, die ueber die Flaeche verstreut lagen. Das sah nicht wie
+     * ein duennes Icon aus, sondern wie Rauschen.
+     */
+    private static boolean istRand(String[] bmp, int r, int c) {
+        if (r == 0 || bmp[r - 1].charAt(c) != '#') return true;
+        if (r == SIZE - 1 || bmp[r + 1].charAt(c) != '#') return true;
+        if (c == 0 || bmp[r].charAt(c - 1) != '#') return true;
+        if (c == SIZE - 1 || bmp[r].charAt(c + 1) != '#') return true;
+        return false;
     }
 }

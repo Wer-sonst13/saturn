@@ -13,8 +13,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ClientPlayerInteractionManager.class)
 public class AttackMixin {
 
-    @Inject(method = "attackEntity", at = @At("HEAD"), require = 0)
-    private void saturn$combo(ClientPlayerEntity player, Entity target, CallbackInfo ci) {
+    // Ohne Parameter einsetzen.
+//
+// attackEntity ist eine ueberschriebene Methode: der Refmap beim Bau hat
+// ClientPlayerEntity (class_1657) auf PlayerEntity (class_746) uebersetzt.
+// Dann passt die Signatur nicht, der Mixin greift nicht - und weil
+// require = 0, faellt das nur als Warnung im Log auf. Das Modul zaehlt
+// dann nie einen Treffer.
+//
+// Ohne Parameter kann es keine Signatur-Abweichung geben. Mixin ruft die
+// Methode dann mit beliebig vielen Parametern auf.
+@Inject(method = "attackEntity", at = @At("HEAD"), require = 0)
+    private void saturn$combo(CallbackInfo ci) {
         Trackers.hit();
         Trackers.registerComboHit();
     }

@@ -84,6 +84,7 @@ public abstract class SaturnScreen extends Screen {
         mouseX = -1;
         mouseY = -1;
         skalierungBegrenzen();
+        mipmapsAbschalten();
     }
 
     // Maus wird auch beim Bewegen gebraucht (Tooltip/Hover), darum cachen wir sie.
@@ -126,6 +127,49 @@ public abstract class SaturnScreen extends Screen {
 
     private static final int SATURN_MAX_GUI = 3;
     private static int gespeicherteSkalierung = -1;
+    private static int gespeicherteMipmaps = -1;
+
+    /**
+     * Mipmaps abschalten, solange ein Saturn-Fenster offen ist.
+     *
+     * Das ist vermutlich die eigentliche Ursache der unscharfen Schrift:
+     * Minecraft schaltet die Texturfilterung ab, sobald "Mipmap-Ebenen" groesser
+     * als 0 ist, von NEAREST auf LINEAR um. Pixel-Schrift, die dann noch
+     * hochskaliert wird, wird dabei weich - und zwar unabhaengig von der
+     * GUI-Skalierung, weshalb jede Stufe gleich unscharf aussah.
+     */
+    private void mipmapsAbschalten() {
+        net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+        if (mc == null || mc.options == null) return;
+        net.minecraft.client.option.SimpleOption<Integer> opt = mc.options.getMipmapLevels();
+        if (opt == null) return;
+        int jetzt = opt.getValue();
+        if (jetzt <= 0) return;
+        if (gespeicherteMipmaps < 0) gespeicherteMipmaps = jetzt;
+        opt.setValue(0);
+        // Die Texturen einmal neu aufbauen - ohne das wirkt die Aenderung erst
+        // nach einem Neustart.
+        try {
+            mc.setMipmapLevels(0);
+        } catch (Throwable t) {
+            // Manche Versionen kennen die Methode nicht. Dann bleibt es bei der
+            // Option - schlimmstenfalls ist es nur etwas weicher.
+        }
+    }
+
+    /** Stellt die Mipmap-Einstellung des Spielers wieder her. */
+    private void mipmapsZurueck() {
+        if (gespeicherteMipmaps < 0) return;
+        net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+        int wert = gespeicherteMipmaps;
+        gespeicherteMipmaps = -1;
+        if (mc == null || mc.options == null) return;
+        try {
+            mc.setMipmapLevels(wert);
+        } catch (Throwable t) {
+            // siehe oben
+        }
+    }
 
     /**
      * Setzt die GUI-Skalierung auf einen Wert, bei dem das Menue scharf bleibt.
@@ -189,6 +233,7 @@ public abstract class SaturnScreen extends Screen {
     @Override
     public void removed() {
         skalierungZurueck();
+        mipmapsZurueck();
         super.removed();
     }
 }

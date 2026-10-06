@@ -616,6 +616,49 @@ async function fehlendeVorinstallierteNachladen(inst) {
   }
 }
 
+/**
+ * Die Mod-Konfiguration eines Profils lesen.
+ *
+ * Die Mod legt ihre Einstellungen unter <profilordner>/config/saturn.json ab.
+ * Daraus braucht der Launcher eine Angabe: ob das Logo vor dem Namen stehen
+ * soll. Das ist im Spiel unter "Launcher Logo" schaltbar.
+ */
+const readSaturnConfig = (inst) => {
+  if (!inst) return null;
+  const p = path.join(INST, inst.id, "config", "saturn.json");
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, "utf8"));
+  } catch {
+    return null;         // Datei halb geschrieben oder kaputt
+  }
+};
+
+/**
+ * Soll das Logo vor dem Namen stehen?
+ *
+ * Standard ist ja. Ausgeschaltet wird es ueber das Modul "launcherlogo" im
+ * Spiel. Welches Profil gilt, entscheidet das gerade ausgewaehlte; gibt es
+ * keines, das zuletzt gespielte - sonst merkt der Spieler die Einstellung
+ * nicht an der Stelle, wo er sie gemacht hat.
+ */
+ipcMain.handle("launcherLogo", (_, id) => {
+  const liste = read();
+  const gewaehlt = (id && liste.find((i) => i.id === id)) || selOderLetzte(liste);
+  const cfg = readSaturnConfig(gewaehlt);
+  const eintrag = cfg && cfg.modules && cfg.modules.launcherlogo;
+  if (!eintrag) return true;           // kein Eintrag = Standard = an
+  return eintrag.on !== false;
+});
+
+/** Das im Profil-Detail gewaehlte, sonst das zuletzt gespielte, sonst das erste. */
+function selOderLetzte(liste) {
+  if (!liste.length) return null;
+  return liste
+    .slice()
+    .sort((a, b) => (b.lastPlayed || b.created || 0) - (a.lastPlayed || a.created || 0))[0];
+}
+
 // --------------------------------------------------------- Mod-Verwaltung
 
 /**

@@ -249,6 +249,13 @@ public final class Modules {
                 "Save and switch between different mod and setting sets.",
                 "MISC", "user", false, false, true)
                 .add(Setting.text("profile", "Active Profile", "Default")));
+
+        // Steuert das Logo vor dem Namen im Launcher. Der Launcher liest
+        // diese Einstellung aus config/saturn.json - deshalb muss sie hier
+        // "launcherlogo" heissen und in der Mod-Liste sichtbar sein.
+        register(new Module("launcherlogo", "Launcher Logo",
+                "Show the Saturn logo in front of the name on the launcher start page.",
+                "MISC", "planet", false, false, false));
     }
 
     /** Anzahl aller Module - für die Kopfzeile im Menü. */

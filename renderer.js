@@ -111,12 +111,28 @@ async function setupSkin() {
 /** Das Logo, das vor dem Namen steht. */
 const SATURN_LOGO = "assets/saturn-logo.png";
 
+/**
+ * Blendet das Logo vor dem Namen ein oder aus.
+ *
+ * Abgeschaltet wird es im Spiel unter MISC -> "Launcher Logo". Der Launcher
+ * liest das aus der Mod-Konfiguration des passenden Profils, damit die
+ * Einstellung dort gilt, wo sie gemacht wurde.
+ */
+async function setzeLogo() {
+  const bild = $("hudFace");
+  if (!bild) return;
+  let an = true;
+  try { an = await ipc.invoke("launcherLogo", sel); } catch {}
+  bild.style.display = an ? "" : "none";
+}
+
 async function loadSkin() {
   let acc = null;
   try { acc = await ipc.invoke("account"); } catch {}
   skinAcc = acc;
   // Vor dem Namen steht das Saturn-Logo, nicht ein Minecraft-Kopf.
   $("hudFace").src = SATURN_LOGO;
+  setzeLogo();
   if (!acc) {
     $("nick").textContent = "Nicht angemeldet";
     skinView.img = null;
@@ -273,6 +289,9 @@ async function refreshStatus() {
 function dropPick(id) {
   sel = id;
   $("instDrop").classList.remove("on");
+  // Das Logo richtet sich nach dem gewaehlten Profil - beim Wechsel also
+  // neu holen, sonst stuende noch die Entscheidung des anderen.
+  setzeLogo();
   if (list.find((i) => i.id === id && i.running)) {
     logTarget = id;
     nav("log");

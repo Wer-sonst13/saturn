@@ -109,8 +109,7 @@ public final class ScoreboardRenderer {
                         + " team=" + (t == null ? "keins" : t.getName())
                         + " prefix='" + (t == null ? "" : t.getPrefix().getString())
                         + "' suffix='" + (t == null ? "" : t.getSuffix().getString())
-                        + "' teamFarbe=" + (t == null || t.getColor() == null ? "keine"
-                                : t.getColor() + "/" + Integer.toHexString(t.getColor().getColorValue())));
+                        + "' teamFarbe=" + farbeVon(t));
                 n++;
             }
         }
@@ -239,12 +238,27 @@ public final class ScoreboardRenderer {
      */
     private static int teamFarbe(Scoreboard board, String name, int ersatz) {
         try {
-            Team team = board.getScoreHolderTeam(name);
-            if (team == null) return ersatz;
-            Formatting f = team.getColor();
-            return f == null ? ersatz : 0xFF000000 | f.getColorValue();
+            return farbeVon(board.getScoreHolderTeam(name));
         } catch (Throwable t) {
             return ersatz;
         }
+    }
+
+    /**
+     * Farbwert eines Teams, 0 wenn es keinen gibt.
+     *
+     * Achtung: getColorValue() liefert ein Integer und das ist null, wenn das
+     * Team keine Farbe gesetzt hat - Formatting.RESET ist zwar nicht null,
+     * sein Wert aber schon. Ein simples "ist die Farbe null" reicht nicht,
+     * das entpackt null und wirft einen NullPointerException. Genau daran ist
+     * das Spiel abgestuerzt.
+     */
+    private static int farbeVon(Team team) {
+        if (team == null) return 0;
+        Formatting f = team.getColor();
+        if (f == null) return 0;
+        Integer wert = f.getColorValue();
+        if (wert == null) return 0;
+        return 0xFF000000 | wert;
     }
 }

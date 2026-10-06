@@ -46,14 +46,17 @@ public final class ScoreboardRenderer {
         // Namen sammeln, Punktzahl holen, absteigend sortieren
         List<String> names = new ArrayList<>();
         List<Integer> scores = new ArrayList<>();
-        for (Object raw : board.getScoreboardEntries(objective)) {
-            if (!(raw instanceof ScoreHolder holder)) continue;
-            String name = holder.getNameForScoreboard();
-            int score = 0;
-            var rs = board.getScore(holder, objective);
-            if (rs != null) score = rs.getScore();
+        // ScoreboardEntry ist seit 1.21 ein Record mit owner() und value() und
+        // implementiert KEIN ScoreHolder. Die alte Pruefung
+        // "instanceof ScoreHolder" traf deshalb nie zu, die Liste blieb leer
+        // und es wurde nie etwas gezeichnet - das Modul sah aus, als hinge es
+        // nicht.
+        for (net.minecraft.scoreboard.ScoreboardEntry eintrag : board.getScoreboardEntries(objective)) {
+            if (eintrag == null || eintrag.hidden()) continue;
+            String name = eintrag.owner();
+            if (name == null || name.isEmpty()) continue;
             names.add(name);
-            scores.add(score);
+            scores.add(eintrag.value());
         }
         if (names.isEmpty()) return;
 

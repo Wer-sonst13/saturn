@@ -77,6 +77,23 @@ public class Module {
         return this;
     }
 
+    /**
+     * Markiert das Modul als "standardmaessig an".
+     *
+     * Wird einmal beim Registrieren ausgewertet, nicht bei jedem Laden:
+     * danach zaehlt nur noch, was der Spieler selbst umgestellt hat. Sonst
+     * wuerde sich eine einmal ausgeschaltete Mod bei jedem Start wieder
+     * einschalten.
+     */
+    public Module standardAn() {
+        this.standardAn = true;
+        this.enabled = true;
+        return this;
+    }
+
+    /** true, wenn die Mod ohne Zutun des Spielers an sein soll. */
+    public boolean standardAn;
+
     // Registry -------------------------------------------------------
 
     private static final Map<String, Module> ALL = new LinkedHashMap<>();

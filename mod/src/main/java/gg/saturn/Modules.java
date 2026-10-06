@@ -21,6 +21,7 @@ public final class Modules {
         register(new Module("fullbright", "Fullbright",
                 "Removes darkness and improves visibility in all situations.",
                 "RENDER", "sun", false, false, true)
+                .standardAn()
                 .add(Setting.num("level", "Brightness Level", 1.0, 0.1, 1.0, 0.05)));
 
         register(new Module("brightness", "Brightness",
@@ -39,13 +40,20 @@ public final class Modules {
                 .add(Setting.num("level", "Saturation", 1.0, 0.0, 1.0, 0.05))
                 .add(Setting.bool("menus", "Also In Menus", true)));
 
+        // Standardmaessig an, und zwar aus gutem Grund: laeuft die Mod aus, blendet
+        // Minecraft hinter jedem Menue den Hintergrund weich ein - und die
+        // Filterung bleibt fuer den Rest des Bildes gesetzt. Danach wird
+        // alles weich gezeichnet, auch das eigene Menue. Genau das war die
+        // Ursache der unscharfen Schrift.
         register(new Module("clearbg", "Clear Background",
                 "Removes the background blur and darkening behind menus.",
-                "RENDER", "square", false, false, false));
+                "RENDER", "square", false, false, false)
+                .standardAn());
 
         register(new Module("nametags", "Nametags",
                 "Customize and enhance player name visibility.",
                 "RENDER", "pencil", false, false, true)
+                .standardAn()
                 .add(Setting.bool("enabled", "Show Nametags", true))
                 .add(Setting.bool("background", "Background", true))
                 .add(Setting.color("color", "Nametag Color", 0xFFFFFFFF))
@@ -215,6 +223,7 @@ public final class Modules {
         register(new Module("smoothchat", "Smooth Chat",
                 "Slides new chat messages in instead of letting them jump.",
                 "CHAT", "chat", false, true, true)
+                .standardAn()
                 .add(Setting.num("speed", "Animation Speed", 1.0, 0.2, 3.0, 0.1)));
 
         register(new Module("chatutils", "Chat Utils",

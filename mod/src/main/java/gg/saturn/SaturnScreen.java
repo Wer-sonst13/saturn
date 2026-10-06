@@ -83,6 +83,7 @@ public abstract class SaturnScreen extends Screen {
     protected void init() {
         mouseX = -1;
         mouseY = -1;
+        skalierungBegrenzen();
     }
 
     // Maus wird auch beim Bewegen gebraucht (Tooltip/Hover), darum cachen wir sie.
@@ -108,5 +109,53 @@ public abstract class SaturnScreen extends Screen {
 
     protected static List<String> asList(List<String> in) {
         return new ArrayList<>(in);
+    }
+
+    // ------------------------------------------------------------- GUI-Skalierung
+    //
+    // Minecraft zeichnet jedes Fenster in einen Puffer, der genau ein
+    // Fenstergross ist, und skaliert ihn dann auf das Fache der eingestellten
+    // GUI-Skalierung hoch. Bei Faktor 4 wird das Menue also in 480x260 Pixel
+    // gezeichnet und vierfach hochgezogen - die Pixelbuchstaben werden dabei
+    // weich, und es passt kaum etwas auf den Bildschirm.
+    //
+    // Deshalb wird die Skalierung auf hoechstens SATURN_MAX_GUI heruntergesetzt,
+    // solange ein Saturn-Fenster offen ist. Beim Schliessen kommt der
+    // ursprüngliche Wert wieder zurueck, damit die Einstellung des Spielers
+    // unangetastet bleibt.
+
+    private static final int SATURN_MAX_GUI = 3;
+    private static int gespeicherteSkalierung = -1;
+
+    /** Setzt die GUI-Skalierung herunter, falls sie zu gross ist. */
+    private void skalierungBegrenzen() {
+        net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+        if (mc == null || mc.options == null) return;
+        net.minecraft.client.option.SimpleOption<Integer> opt = mc.options.getGuiScale();
+        if (opt == null) return;
+        int jetzt = opt.getValue();
+        if (jetzt <= SATURN_MAX_GUI) return;
+        // Nur beim ersten Mal sichern - init() laeuft beim Wechsel der
+        // Fenstergroesse mehrfach durch.
+        if (gespeicherteSkalierung < 0) gespeicherteSkalierung = jetzt;
+        opt.setValue(SATURN_MAX_GUI);
+    }
+
+    /** stellt die Skalierung des Spielers wieder her. */
+    private void skalierungZurueck() {
+        if (gespeicherteSkalierung < 0) return;
+        net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+        int wert = gespeicherteSkalierung;
+        gespeicherteSkalierung = -1;
+        if (mc == null || mc.options == null) return;
+        net.minecraft.client.option.SimpleOption<Integer> opt = mc.options.getGuiScale();
+        if (opt == null) return;
+        opt.setValue(wert);
+    }
+
+    @Override
+    public void removed() {
+        skalierungZurueck();
+        super.removed();
     }
 }

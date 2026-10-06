@@ -108,19 +108,22 @@ async function setupSkin() {
   requestAnimationFrame(loop);
 }
 
+/** Das Logo, das vor dem Namen steht. */
+const SATURN_LOGO = "assets/saturn-logo.png";
+
 async function loadSkin() {
   let acc = null;
   try { acc = await ipc.invoke("account"); } catch {}
   skinAcc = acc;
+  // Vor dem Namen steht das Saturn-Logo, nicht ein Minecraft-Kopf.
+  $("hudFace").src = SATURN_LOGO;
   if (!acc) {
     $("nick").textContent = "Nicht angemeldet";
-    $("hudFace").src = "https://mc-heads.net/avatar/MHF_Steve/40";
     skinView.img = null;
     skinView.render();
     return;
   }
   $("nick").textContent = acc.name;
-  $("hudFace").src = "https://mc-heads.net/avatar/" + acc.uuid + "/40";
   const skin = acc.skin || {};
   const ok = await skinView.load(skin.url, skin.slim, acc.uuid);
   if (!ok) {

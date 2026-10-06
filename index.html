@@ -5,7 +5,7 @@
 <!-- Saturn als Hintergrund. assets/saturn.jpg wird bevorzugt, sonst die Grafik. -->
 <div class="bg" id="bg"></div>
 <nav>
-  <div class="logo" onclick="nav('play')" title="Saturn Client"><span class="bolt">⚡</span></div>
+  <div class="logo" onclick="nav('play')" title="Saturn Client"><img src="assets/saturn-logo.png" alt="Saturn Client"></div>
   <div class="nb on" data-p="play"><i>▶</i><span>Spielen</span></div>
   <div class="nb" data-p="prof"><i>▤</i><span>Profile</span></div>
   <div class="nb" data-p="mods"><i>▦</i><span>Inhalte</span></div>
@@ -17,8 +17,11 @@
 <div class="col">
   <header>
     <div class="brand">
-      <b id="brandName">Saturn Client</b>
-      <span class="ver" id="ver">v1.0.0</span>
+      <img class="brandLogo" src="assets/saturn-logo.png" alt="">
+      <div class="brandText">
+        <b id="brandName">Saturn Client</b>
+        <span class="ver" id="ver">v1.0.0</span>
+      </div>
     </div>
     <div class="sp"></div>
     <button class="pill acc" id="instBtn" onclick="toggleInst()">

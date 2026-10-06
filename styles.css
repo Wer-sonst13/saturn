@@ -77,11 +77,20 @@ nav {
 }
 [data-theme="light"] nav { background: #fff; }
 nav .logo {
-  font-size: 26px; margin-bottom: 14px; color: var(--ac);
-  text-shadow: 0 0 22px var(--ac); transition: .25s; cursor: pointer;
-  line-height: 1;
+  margin-bottom: 14px; cursor: pointer;
+  transition: transform .25s, filter .25s;
+  line-height: 0;
 }
-nav .logo:hover { transform: scale(1.18) rotate(-8deg); }
+/* Das Logo ist ein 64x64-Bild mit dunklem Rand - deshalb leicht
+   aufhellen und einen weichen Schein darunterlegen, sonst verschwindet
+   der dunkle Rand auf dem dunklen Hintergrund. */
+nav .logo img {
+  width: 44px; height: 44px;
+  image-rendering: pixelated;
+  border-radius: 10px;
+  filter: brightness(1.25) contrast(1.1) drop-shadow(0 0 10px rgba(255,255,255,.22));
+}
+nav .logo:hover img { filter: brightness(1.4) contrast(1.15) drop-shadow(0 0 16px rgba(255,255,255,.35)); }
 .nb {
   width: 72px; padding: 11px 0 8px; border-radius: 14px;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -107,7 +116,13 @@ header {
   flex: 0 0 auto;
 }
 [data-theme="light"] header { background: #fff; }
-.brand { display: flex; flex-direction: column; line-height: 1.15; margin-left: 20px; }
+.brand { display: flex; align-items: center; gap: 10px; margin-left: 20px; }
+.brandText { display: flex; flex-direction: column; line-height: 1.15; }
+.brandLogo {
+  width: 30px; height: 30px; border-radius: 7px;
+  image-rendering: pixelated;
+  filter: brightness(1.25) contrast(1.1) drop-shadow(0 0 8px rgba(255,255,255,.2));
+}
 .brand b { font-size: 15px; letter-spacing: .3px; }
 .ver { font-size: 10px; color: var(--tx-dim); }
 
@@ -182,9 +197,13 @@ hr { border: none; border-top: 1px solid var(--bd); margin: 20px 0; }
   display: flex; align-items: center; gap: 12px;
   margin-bottom: 2px;
 }
+/* Das Bild vor dem Namen ist das Saturn-Logo, kein Minecraft-Kopf.
+   Leicht aufhellen, damit der dunkle Rand des Bildes auf dem dunklen
+   Hintergrund nicht verschwindet. */
 .hudFace {
-  width: 40px; height: 40px; border-radius: 6px;
+  width: 40px; height: 40px; border-radius: 10px;
   image-rendering: pixelated; background: var(--pn2);
+  filter: brightness(1.28) contrast(1.1) drop-shadow(0 0 10px rgba(255,255,255,.2));
 }
 .nick {
   font-size: 30px; font-weight: 700; letter-spacing: .5px;

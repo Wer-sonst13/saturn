@@ -6,14 +6,14 @@ where node >nul 2>nul || (echo Bitte zuerst Node.js installieren: https://nodejs
 where java >nul 2>nul || (echo Bitte zuerst Java 21 (JDK) installieren: https://adoptium.net & pause & exit /b)
 
 echo.
-echo === 1/3 NoLimite-Mod bauen ===
+echo === 1/3 Saturn-Mod bauen ===
 pushd mod
 call gradle build --console=plain
 if errorlevel 1 (
   echo.
   echo Mod-Bau fehlgeschlagen. Fallbacks:
   echo  - Java 21 (JDK) installieren, nicht nur die JRE
-  echo  - oder: Repo auf GitHub hochladen, dort Actions -> "Build NoLimite"
+  echo  - oder: Repo auf GitHub hochladen, dort Actions -> "Build Saturn Client"
   popd
   pause
   exit /b 1
@@ -22,10 +22,10 @@ popd
 
 echo.
 echo === 2/3 Mod in den Launcher legen ===
-for %%f in (mod\build\libs\nolimite-*.jar) do (
+for %%f in (mod\build\libs\saturn-*.jar) do (
   if /i not "%%f"=="%~f0" (
-    copy /y "%%f" "resources\nolimite-mod.jar" >nul
-    echo resources\nolimite-mod.jar aktualisiert
+    copy /y "%%f" "resources\saturn-mod.jar" >nul
+    echo resources\saturn-mod.jar aktualisiert
   )
 )
 

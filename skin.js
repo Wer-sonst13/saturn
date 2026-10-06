@@ -16,18 +16,28 @@ const UV = {
   body: { front: [20, 20, 8, 12], back: [32, 20, 8, 12], right: [16, 20, 4, 12], left: [28, 20, 4, 12], top: [20, 16, 8, 4], bottom: [28, 16, 8, 4] },
   armR: { front: [44, 20, 4, 12], back: [52, 20, 4, 12], right: [40, 20, 4, 12], left: [48, 20, 4, 12], top: [44, 16, 4, 4], bottom: [48, 16, 4, 4] },
   armL: { front: [36, 52, 4, 12], back: [44, 52, 4, 12], right: [32, 52, 4, 12], left: [40, 52, 4, 12], top: [36, 48, 4, 4], bottom: [40, 48, 4, 4] },
-  armLslim: { front: [54, 52, 3, 12], back: [58, 52, 3, 12], right: [50, 52, 4, 12], left: [54, 52, 4, 12], top: [50, 48, 3, 4], bottom: [53, 48, 3, 4] },
+  // Schmale (slim, 3 Einheiten breite) Arme liegen an DENSELBEN Stellen wie
+  // die normalen - nur die breitenabhaengigen Flaechen schrumpfen auf 3.
+  // Die vier tiefen Seiten (left/right/back) bleiben 4 breit, weil der Arm
+  // 4 Einheiten tief ist.
+  armRslim: { front: [44, 20, 3, 12], back: [51, 20, 4, 12], right: [40, 20, 4, 12], left: [47, 20, 4, 12], top: [44, 16, 3, 4], bottom: [47, 16, 3, 4] },
+  armLslim: { front: [36, 52, 3, 12], back: [43, 52, 4, 12], right: [32, 52, 4, 12], left: [39, 52, 4, 12], top: [36, 48, 3, 4], bottom: [39, 48, 3, 4] },
   legR: { front: [4, 20, 4, 12], back: [12, 20, 4, 12], right: [0, 20, 4, 12], left: [8, 20, 4, 12], top: [4, 16, 4, 4], bottom: [8, 16, 4, 4] },
   legL: { front: [20, 52, 4, 12], back: [28, 52, 4, 12], right: [16, 52, 4, 12], left: [24, 52, 4, 12], top: [20, 48, 4, 4], bottom: [24, 48, 4, 4] },
 };
 
-/** Körperteile in Minecraft-Einheiten. y zeigt nach oben, +z nach vorn. */
+/**
+ * Koerperteile in Minecraft-Einheiten. y zeigt nach oben, +z nach vorn.
+ * Bei einem Slim-Skin sind BEIDE Arme nur 3 Einheiten breit und sitzen
+ * jeweils 1 Einheit weiter innen - sonst stehen sie schief vom Rumpf ab.
+ */
 function parts(slim) {
+  const armW = slim ? 3 : 4;
   return [
     { uv: UV.head, x0: -4, y0: 24, z0: -4, x1: 4, y1: 32, z1: 4 },
     { uv: UV.body, x0: -4, y0: 12, z0: -2, x1: 4, y1: 24, z1: 2 },
-    { uv: UV.armR, x0: -8, y0: 12, z0: -2, x1: -4, y1: 24, z1: 2 },
-    { uv: slim ? UV.armLslim : UV.armL, x0: 4, y0: 12, z0: -2, x1: slim ? 7 : 8, y1: 24, z1: 2 },
+    { uv: slim ? UV.armRslim : UV.armR, x0: -4 - armW, y0: 12, z0: -2, x1: -4, y1: 24, z1: 2 },
+    { uv: slim ? UV.armLslim : UV.armL, x0: 4, y0: 12, z0: -2, x1: 4 + armW, y1: 24, z1: 2 },
     { uv: UV.legR, x0: -4, y0: 0, z0: -2, x1: 0, y1: 12, z1: 2 },
     { uv: UV.legL, x0: 0, y0: 0, z0: -2, x1: 4, y1: 12, z1: 2 },
   ];
@@ -86,7 +96,15 @@ class SkinView {
         const img = await loadImage(src);
         if (img.width < TEX || img.height < TEX) continue;
         this.img = img;
-        this.slim = !!slim;
+        // Das Profil-Flag vom Mojang-Server stimmt nicht immer mit der
+        // tatsaechlich hochgeladenen Textur ueberein. Was wirklich im Bild
+        // steht, gewinnt - sonst fehlt je nach Quelle ein Arm.
+        this.slim = detectSlim(img);
+        if (detectSlim(img) !== !!slim) {
+          console.info(
+            `[skin] Profil meldet slim=${!!slim}, Textur ist slim=${this.slim} - es gilt die Textur`
+          );
+        }
         return true;
       } catch {
         // nächste Quelle versuchen
@@ -193,6 +211,42 @@ function sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
 /** Orthografische Projektion: x nach rechts, y nach unten. */
 function project(p, scale, cx, cy) {
   return { x: cx + p[0] * scale, y: cy - p[1] * scale };
+}
+
+/**
+ * Sind die Arme in dieser Textur schmal (3 Einheiten)?
+ *
+ * Beide Arm-Vorderseiten beginnen bei x=44 (rechts) bzw. x=36 (links) und
+ * sind 4 breit, wenn der Skin normal ist. Beim schmalen Skin wird nur die
+ * erste Spalte der Vorderseiten mit Farbe bemalt - die zweite (x=47 bzw.
+ * x=39) bleibt durchsichtig, weil dort in Minecraft nichts hingehoert wird.
+ * Wir zaehlen also, wie viele dieser beiden Spalten bemalt sind.
+ */
+function detectSlim(img) {
+  const c = document.createElement("canvas");
+  c.width = TEX;
+  c.height = TEX;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  g.drawImage(img, 0, 0, TEX, TEX);
+  let d;
+  try {
+    d = g.getImageData(0, 0, TEX, TEX).data;
+  } catch {
+    return false;          // fremde Herkunft ohne Pixelzugriff
+  }
+  // Spalten, die bei einem normalen Arm zwingend bemalt waeren
+  const spalten = [
+    [47, 20],               // rechter Arm, 2. Spalte
+    [39, 52],               // linker Arm, 2. Spalte
+  ];
+  let bemalt = 0;
+  for (const [x, y0] of spalten) {
+    for (let y = y0; y < y0 + 12; y++) {
+      if (d[(y * TEX + x) * 4 + 3] > 8) { bemalt++; break; }
+    }
+  }
+  // Beide Spalten frei = schmale Arme
+  return bemalt === 0;
 }
 
 /** Bild laden; Fehler werden als Ablehnung gemeldet. */

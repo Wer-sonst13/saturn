@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "id": "nolimite",
+  "id": "saturn",
   "version": "${version}",
-  "name": "NoLimite",
-  "description": "NoLimite Client: Modul-Menü, HUD-Editor, Scoreboard-Anpassung, Chat Utils und viele ein-/ausschaltbare Module.",
-  "authors": ["NoLimite"],
+  "name": "Saturn Client",
+  "description": "Saturn Client: Modul-Menü, HUD-Editor, Scoreboard-Anpassung, Chat Utils und viele ein-/ausschaltbare Module.",
+  "authors": ["Saturn"],
   "environment": "client",
-  "entrypoints": { "client": ["gg.nolimite.NoLimiteModInitializer"] },
-  "mixins": ["nolimite.mixins.json"],
+  "entrypoints": { "client": ["gg.saturn.SaturnModInitializer"] },
+  "mixins": ["saturn.mixins.json"],
   "depends": { "fabricloader": ">=0.16.0", "minecraft": "~1.21.4", "java": ">=21", "fabric-api": "*" }
 }

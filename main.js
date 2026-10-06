@@ -4,11 +4,30 @@ const { Client } = require("minecraft-launcher-core");
 const { Auth } = require("msmc");
 const { autoUpdater } = require("electron-updater");
 
-const ROOT = path.join(os.homedir(), ".nolimite");
+const ROOT = path.join(os.homedir(), ".saturn");
+const OLD_ROOT = path.join(os.homedir(), ".nolimite");
 const INST = path.join(ROOT, "instances");
 const DB = path.join(ROOT, "instances.json");
 const SETTINGS = path.join(ROOT, "settings.json");
-const UA = { "User-Agent": "NoLimite/1.0" };
+const UA = { "User-Agent": "SaturnClient/1.0" };
+
+/** Beim ersten Start nach dem Umbenennen die alten Daten übernehmen. */
+function migrateOldRoot() {
+  if (!fs.existsSync(OLD_ROOT) || fs.existsSync(ROOT)) return;
+  try {
+    // rename ist sofort und belegt keinen zweiten Platz. Klappt er nicht
+    // (anderes Laufwerk, offene Dateien), wird kopiert.
+    fs.renameSync(OLD_ROOT, ROOT);
+    log("Datenordner .nolimite nach .saturn umbenannt");
+  } catch {
+    try {
+      fs.cpSync(OLD_ROOT, ROOT, { recursive: true });
+      log("Datenordner .nolimite nach .saturn kopiert");
+    } catch (e) {
+      log(`- Datenübernahme nicht möglich: ${e.message}`);
+    }
+  }
+}
 
 let win, account = null;
 /** Laufende Minecraft-Prozesse: id -> {proc, started, log:[], exitCode} */
@@ -19,8 +38,8 @@ const MAX_LOG = 3000;
 
 const modJar = () => {
   const j = app.isPackaged
-    ? path.join(process.resourcesPath, "nolimite-mod.jar")
-    : path.join(__dirname, "resources", "nolimite-mod.jar");
+    ? path.join(process.resourcesPath, "saturn-mod.jar")
+    : path.join(__dirname, "resources", "saturn-mod.jar");
   return fs.existsSync(j) ? j : null;
 };
 
@@ -29,7 +48,7 @@ const syncMod = (inst) => {
   if (!j || inst.mc !== "1.21.4") return;
   const d = path.join(INST, inst.id, "mods");
   fs.mkdirSync(d, { recursive: true });
-  fs.copyFileSync(j, path.join(d, "nolimite.jar"));
+  fs.copyFileSync(j, path.join(d, "saturn.jar"));
 };
 
 const jget = async (u) => (await fetch(u, { headers: UA })).json();
@@ -116,12 +135,20 @@ function dirSizeFast(dir) {
 }
 
 app.whenReady().then(() => {
+  migrateOldRoot();
   win = new BrowserWindow({
     width: 1280, height: 800, minWidth: 1024, minHeight: 660, frame: true,
     backgroundColor: "#050505", autoHideMenuBar: true,
     webPreferences: { nodeIntegration: true, contextIsolation: false },
   });
   win.loadFile("index.html");
+  // Versionsnummer fuer die Fusszeile (renderer.js liest window.saturnVersion).
+  // Muss nach dem Laden gesetzt werden: erst dann existiert das Fenster-DOM.
+  win.webContents.on("did-finish-load", () => {
+    win.webContents.executeJavaScript(
+      `window.saturnVersion = ${JSON.stringify(app.getVersion())};`
+    ).catch(() => {});
+  });
   // Kein zweites Fenster: die Min-/Schliessen-Knoepfe der Seite sind nur Deko,
   // das echte Fenstermanagement macht Electron.
   win.webContents.on("did-create-window", () => {});
@@ -215,20 +242,26 @@ ipcMain.handle("login", async () => {
   return accountInfo();
 });
 
-/** Stellt eine gespeicherte Anmeldung beim Start wieder her. */
-ipcMain.handle("hasLogin", async () => {
+/**
+ * Holt eine gespeicherte Anmeldung zurück an den Start.
+ *
+ * Wichtig: `auth.refresh()` gibt einen *neuen* Refresh-Token zurück und der
+ * alte wird dabei ungültig. Deshalb muss das Ergebnis jedes Mal wieder
+ * gespeichert werden - sonst ist die Anmeldung nach dem nächsten Start weg.
+ * Deshalb laufen beide Aufrufer über diese eine Funktion.
+ */
+async function restoreAccount() {
   if (account) return accountInfo();
   const saved = savedAccount();
   if (!saved || !saved.refresh) return null;
   try {
     const auth = new Auth("select_account");
     const xbox = await auth.refresh(saved.refresh);
-    const mc = await xbox.getMinecraft();
-    account = mc;
+    account = await xbox.getMinecraft();
     saveAccount({
       refresh: xbox.save(),
-      name: mc.profile.name,
-      uuid: mc.profile.id,
+      name: account.profile.name,
+      uuid: account.profile.id,
       skin: skinUrl(),
     });
     return accountInfo();
@@ -237,7 +270,10 @@ ipcMain.handle("hasLogin", async () => {
     clearAccount();
     return null;
   }
-});
+}
+
+/** Stellt eine gespeicherte Anmeldung beim Start wieder her. */
+ipcMain.handle("hasLogin", () => restoreAccount());
 
 ipcMain.handle("logout", () => {
   clearAccount();
@@ -245,19 +281,7 @@ ipcMain.handle("logout", () => {
 });
 
 /** Name, Avatar und Skin des angemeldeten Accounts. */
-ipcMain.handle("account", async () => {
-  if (!account && savedAccount()) {
-    try {
-      const auth = new Auth("select_account");
-      const xbox = await auth.refresh(savedAccount().refresh);
-      account = await xbox.getMinecraft();
-    } catch {
-      clearAccount();
-      return null;
-    }
-  }
-  return account ? accountInfo() : null;
-});
+ipcMain.handle("account", () => restoreAccount());
 
 // ---------------------------------------------------------------- Starten
 
@@ -295,7 +319,7 @@ ipcMain.handle("launch", async (_, { id, ram }) => {
     throw e;
   }
 
-  const rec = { proc: child, started: Date.now(), log: ["=== NoLimite: Instanz gestartet ==="] };
+  const rec = { proc: child, started: Date.now(), log: ["=== Saturn Client: Instanz gestartet ==="] };
   RUNNING.set(id, rec);
   win && win.webContents.send("progress", { id, pct: 100 });
 
@@ -329,7 +353,7 @@ ipcMain.handle("launch", async (_, { id, ram }) => {
   child.on("close", (code) => {
     clearInterval(rec.playTimer);
     RUNNING.delete(id);
-    push(`=== NoLimite: Minecraft beendet (Code ${code}) ===`);
+    push(`=== Saturn Client: Minecraft beendet (Code ${code}) ===`);
     const list = read();
     const it = list.find((i) => i.id === id);
     if (it) {
@@ -432,7 +456,7 @@ ipcMain.handle("modList", (_, id) => {
   add(active, true);
   add(disabled, false);
   files.sort((a, b) => a.name.localeCompare(b.name));
-  return { files, nolimite: files.some((f) => f.file === "nolimite.jar") };
+  return { files, saturn: files.some((f) => f.file === "saturn.jar") };
 });
 
 /**
@@ -476,7 +500,7 @@ ipcMain.handle("toggleMod", (_, { id, file, on }) => {
   } else {
     const src = path.join(dir, file);
     if (!fs.existsSync(src)) throw new Error("Datei nicht gefunden: " + file);
-    if (file === "nolimite.jar") throw new Error("Die NoLimite-Mod kann nicht deaktiviert werden.");
+    if (file === "saturn.jar") throw new Error("Die Saturn-Mod kann nicht deaktiviert werden.");
     fs.renameSync(src, path.join(off, file));
   }
   return true;
@@ -651,6 +675,14 @@ ipcMain.handle("rename", (_, { id, name }) => {
 
 ipcMain.handle("settings", () => readSettings());
 ipcMain.handle("saveSettings", (_, s) => {
-  writeSettings(s);
+  // Das `account` gehoert dem Backend, nicht der Oberflaeche. Die Seite
+  // laedt die Einstellungen einmal beim Start und schreibt sie später
+  // komplett zurueck - ohne diese Ausnahme wuerde dabei eine inzwischen
+  // gespeicherte Anmeldung wieder geloescht.
+  const alt = readSettings();
+  const merged = { ...s };
+  if (alt.account) merged.account = alt.account;
+  else delete merged.account;
+  writeSettings(merged);
   return true;
 });

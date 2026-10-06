@@ -1,7 +1,7 @@
 plugins { id 'fabric-loom' version '1.9-SNAPSHOT' }
 version = project.mod_version
-group = 'gg.nolimite'
-base { archivesName = 'nolimite' }
+group = 'gg.saturn'
+base { archivesName = 'saturn' }
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"

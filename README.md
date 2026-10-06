@@ -1,4 +1,4 @@
-# NoLimite
+# Saturn Client
 
 Minecraft-Launcher mit einem eigenen Client-Ordner (Mod) für Fabric 1.21.4.
 Enthalten: Instanzen mit Spielzeit, Live-Status und Logs, Mod-/Paket-Suche über
@@ -11,21 +11,26 @@ und einer voll einstellbaren Scoreboard-Seite.
 1. Node.js installieren: https://nodejs.org
 2. Java 21 (JDK) installieren: https://adoptium.net
 3. `build.bat` doppelklicken
-4. Im Ordner `dist` liegt `NoLimite Setup 1.0.0.exe`
+4. Im Ordner `dist` liegt `Saturn-Client-Setup-1.0.0.exe`
 
-`build.bat` baut zuerst die Mod und legt sie in `resources\nolimite-mod.jar`,
+`build.bat` baut zuerst die Mod und legt sie in `resources\saturn-mod.jar`,
 danach den Launcher.
 
 ### Variante B: Fertige .exe von GitHub bauen lassen
 1. Neues GitHub-Repo erstellen und diesen Ordner hochladen (inkl. `.github`)
-2. Tab "Actions" -> "Build NoLimite" abwarten
-3. Bei "Artifacts" `NoLimite-Setup` herunterladen, entpacken, installieren.
+2. Tab "Actions" -> "Build Saturn Client" abwarten
+3. Bei "Artifacts" `Saturn-Client-Setup` herunterladen, entpacken, installieren.
 
 Entwicklung: `npm install` und `npm start`
 
 ## Auto-Update
 1. In `package.json` bei `build.publish` `Wer-sonst13` durch deinen GitHub-Namen
-   ersetzen (Repo muss öffentlich sein, Name `nolimite`).
+   ersetzen (Repo muss öffentlich sein).
+   **Wichtig:** Der Repo-Name in `build.publish` muss exakt dem GitHub-Repo
+   entsprechen. Er steht absichtlich noch auf `nolimite` - das Programm selbst
+   heißt Saturn Client, aber das Repo heißt noch anders. Benennst du das Repo
+   um, musst du `build.publish.repo` hier gleichzeitig anpassen, sonst findet
+   der Launcher kein Update.
 2. Neue Version veröffentlichen: `version` in `package.json` erhöhen (z. B. 1.0.1),
    committen, dann `git tag v1.0.1` und `git push --tags`.
 3. GitHub baut das Setup und legt es unter "Releases" ab. Jeder installierte
@@ -51,10 +56,10 @@ Reiter: Mods, Ressourcenpakete, Shader, Datenpakete, Welten, Screenshots.
 
 **Mods:** Jede Mod lässt sich per Schalter aus- und einschalten. Ausgeschaltete
 Mods werden nach `mods-off/` verschoben, nicht gelöscht, und sind über den
-Schalter wieder aktivierbar. Die NoLimite-Mod selbst lässt sich nicht abschalten.
+Schalter wieder aktivierbar. Die Saturn-Mod selbst lässt sich nicht abschalten.
 
 **Neues Profil:** Dialog mit Namensfeld, Minecraft-Version und einer Liste
-empfohlener Mods, die angeklickt werden können. Die NoLimite-Mod wird für 1.21.4
+empfohlener Mods, die angeklickt werden können. Die Saturn-Mod wird für 1.21.4
 automatisch mitinstalliert.
 
 ## Die Mod (im Spiel)
@@ -63,12 +68,12 @@ Tasten (alle unter *Steuerung* änderbar):
 
 | Taste | Funktion |
 |---|---|
-| Rechts-Shift | NoLimite-Menü öffnen |
+| Rechts-Shift | Saturn-Menü öffnen |
 | F6 | HUD-Editor: Elemente ziehen, Mausrad = Größe |
 | F7 | Chat Utils: Chat durchsuchen, Zeile anklicken zum Kopieren |
 | F8 | Vanilla-HUD ein-/ausblenden |
 
-Im Pause-Menü gibt es zusätzlich einen **NoLimite**-Knopf.
+Im Pause-Menü gibt es zusätzlich einen **Saturn**-Knopf.
 
 ### Menü
 
@@ -106,7 +111,7 @@ ausblenden oder die Positionen zurücksetzen.
 ### Profile
 
 `Profiles` merkt sich einen eigenen Satz an-/ausgeschalteter Module
-(`config/nolimite.json`), um zwischen verschiedenen Setups zu wechseln.
+(`config/saturn.json`), um zwischen verschiedenen Setups zu wechseln.
 
 ## Dateien
 
@@ -116,13 +121,13 @@ index.html       Oberfläche
 styles.css       Gestaltung (Themes hell/dunkel, Pixel- und Standardschrift)
 renderer.js      Seitenlogik
 mod/             Fabric-Mod (Java 21, Gradle)
-resources/       hier landet nolimite-mod.jar
+resources/       hier landet saturn-mod.jar
 ```
 
 ## Hinweise
 
 - Die Mod läuft nur auf **Fabric 1.21.4**. Andere Versionen starten normal,
-  ohne NoLimite-Menü.
+  ohne Saturn-Menü.
 - Nicht implementiert: **Motion Blur**. Der Effekt bräuchte einen eigenen
   Shader; die Fabric-API 1.21.4 bietet keine Shader-Registrierung, daher wurde
   er entfernt, statt etwas zu liefern, das kaputtgeht.

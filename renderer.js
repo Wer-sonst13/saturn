@@ -13,37 +13,78 @@ let timer = null;
 let skinView = null, skinAcc = null, lastFrame = 0;
 
 // ------------------------------------------------------------------- Skin
+// -------------------------------------------------------------- Hintergrund
+async function setupBackground() {
+  const bg = $("bg");
+  if (!bg) return;
+  // saturn.webp liegt mit im Projekt; .jpg/.png wuerden es ueberschreiben,
+  // falls du spaeter ein eigenes Bild dort ablegst.
+  for (const name of ["saturn.jpg", "saturn.png", "saturn.webp"]) {
+    const probe = new Image();
+    const ok = await new Promise((r) => {
+      probe.onload = () => r(true);
+      probe.onerror = () => r(false);
+      probe.src = "assets/" + name;
+    });
+    if (ok) {
+      bg.style.backgroundImage = 'url("assets/' + name + '")';
+      return;
+    }
+  }
+}
+
 async function setupSkin() {
   const canvas = $("skin");
   if (!canvas) return;
-  const dpr = window.devicePixelRatio || 1;
-  const rect = $("skinStage").getBoundingClientRect();
-  canvas.width = Math.max(1, Math.round(rect.width * dpr));
-  canvas.height = Math.max(1, Math.round(rect.height * dpr));
-  canvas.style.width = rect.width + "px";
-  canvas.style.height = rect.height + "px";
+  const stage = $("skinStage");
+
+  const measure = () => resizeSkin();
 
   skinView = new SkinView(canvas);
 
-  // Ziehen zum Drehen
-  const stage = $("skinStage");
+  // Ziehen zum Drehen. Waehrend des Ziehens wird jedes Mal neu gezeichnet,
+  // damit das Modell der Maus folgt und nicht erst beim Loslassen springt.
   stage.addEventListener("pointerdown", (e) => {
-    stage.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    try { stage.setPointerCapture(e.pointerId); } catch {}
     stage.classList.add("touched");
     skinView.startDrag(e);
   });
-  stage.addEventListener("pointermove", (e) => skinView.drag(e));
+  stage.addEventListener("pointermove", (e) => {
+    if (!skinView.dragging) return;
+    e.preventDefault();
+    skinView.drag(e);
+    skinView.render();
+  });
   const stop = (e) => {
     skinView.endDrag();
     try { stage.releasePointerCapture(e.pointerId); } catch {}
   };
   stage.addEventListener("pointerup", stop);
   stage.addEventListener("pointercancel", stop);
+  stage.addEventListener("lostpointercapture", stop);
 
-  // Klick ohne Ziehen -> zurück auf die Vorderansicht
+  // Klick ohne Ziehen -> zurueck auf die Vorderansicht
   stage.addEventListener("click", () => {
-    if (skinView.dragDistance < 6) skinView.yaw = 0;
+    if (skinView.dragDistance < 6) {
+      skinView.yaw = 0;
+      skinView.render();
+    }
   });
+
+  // Erst messen, wenn das Layout steht - sonst passt das Canvas nicht
+  // und das Modell wird abgeschnitten.
+  measure();
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  measure();
+
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(() => {
+      measure();
+      if (skinView) skinView.render();
+    }).observe(stage);
+  }
+  window.addEventListener("resize", () => { measure(); if (skinView) skinView.render(); });
 
   await loadSkin();
   requestAnimationFrame(loop);
@@ -82,7 +123,10 @@ function loop(t) {
   if (skinView && $("play").classList.contains("on")) {
     const before = skinView.yaw;
     skinView.tick(dt);
-    if (skinView.autoSpin && skinView.yaw !== before) skinView.render();
+    // Waehrend des Drehens zeichnet der Maus-Handler, hier nur die Animation
+    if (skinView.autoSpin && !skinView.dragging && skinView.yaw !== before) {
+      skinView.render();
+    }
   }
   requestAnimationFrame(loop);
 }
@@ -163,9 +207,27 @@ function show(p) {
   document.querySelectorAll(".page").forEach((e) => e.classList.toggle("on", e.id === p));
   document.querySelectorAll(".nb").forEach((e) => e.classList.toggle("on", e.dataset.p === p));
   $("instDrop").classList.remove("on");
+  // Die Skin-Buehne ist versteckt, solange eine andere Seite offen ist -
+  // Canvas dann neu messen, sonst bleibt das Modell abgeschnitten.
+  if (p === "play" && skinView) { resizeSkin(); skinView.render(); }
   if (p === "prof") { renderProfiles(); if (sel) openDetail(); }
   if (p === "mods") loadContent(true);
   if (p === "log") selectLog();
+}
+
+function resizeSkin() {
+  if (!skinView) return;
+  const canvas = $("skin"), stage = $("skinStage");
+  const dpr = window.devicePixelRatio || 1;
+  const r = stage.getBoundingClientRect();
+  if (r.width < 10 || r.height < 10) return;
+  const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+  canvas.style.width = r.width + "px";
+  canvas.style.height = r.height + "px";
 }
 // Die Knöpfe oben links sind nur Deko - Electron verwaltet den Rahmen selbst.
 function win() {}
@@ -283,7 +345,7 @@ function renderMods() {
   $("modList").innerHTML = list2.length ? list2.map((f) => `
     <div class="mrow ${f.on ? "" : "off"}">
       <div class="mn"><b>${esc(f.name)}</b><small>${esc(f.version || f.file)}</small>
-        ${f.file === "nolimite.jar" ? '<span class="lock">NoLimite-Mod</span>' : ""}</div>
+        ${f.file === "saturn.jar" ? '<span class="lock">Saturn-Mod</span>' : ""}</div>
       <button class="miniBtn" onclick="delMod('${esc(f.file)}')">&#128465;</button>
       <div class="tog ${f.on ? "on" : ""}" onclick="toggleMod('${esc(f.file)}',${!f.on})"></div>
     </div>`).join("") : '<div class="info">Keine Mods installiert.</div>';
@@ -374,7 +436,7 @@ async function openCreate() {
      <div class="frow"><label>Minecraft</label><select id="mcv">${versions.map((v) => `<option${v === "1.21.4" ? " selected" : ""}>${v}</option>`).join("")}</select></div>
      <p class="info">Empfohlene Mods (anklicken zum Abwählen):</p>
      <div class="modPick" id="pickBox">${rows}</div>
-     <p class="info">Die NoLimite-Mod (Menü, HUD-Editor, Scoreboard) wird für 1.21.4 automatisch mitinstalliert.</p>`,
+     <p class="info">Die Saturn-Mod (Menü, HUD-Editor, Scoreboard) wird für 1.21.4 automatisch mitinstalliert.</p>`,
     "Erstellen", async () => {
       const mods = [...document.querySelectorAll("#pickBox .pick.on")].map((e) => e.dataset.slug);
       const name = $("nm").value.trim() || "NL";
@@ -609,17 +671,42 @@ function save() {
   ipc.invoke("saveSettings", settings);
 }
 function applySettings() {
-  if (!settings.col) return;
-  document.documentElement.style.setProperty("--ac", settings.col);
-  document.documentElement.dataset.theme = settings.theme || "dark";
+  const root = document.documentElement;
+  root.dataset.theme = settings.theme || "dark";
+
+  // Akzentfarbe: Standard ist Schwarz-Weiss, der Farbwähler darf sie ändern.
+  const ac = settings.col || (settings.theme === "light" ? "#111111" : "#ffffff");
+  root.style.setProperty("--ac", ac);
+  // Text auf der Akzentfläche muss kontrastieren, sonst wird Weiß auf Weiß unlesbar
+  root.style.setProperty("--on-ac", luminance(ac) > 0.55 ? "#000000" : "#ffffff");
+  const c = hexToRgb(ac);
+  root.style.setProperty("--ac-soft",
+    `rgba(${c.r},${c.g},${c.b},${settings.theme === "light" ? 0.08 : 0.12})`);
+
   document.body.style.fontFamily = settings.font === "pixel"
     ? '"Silkscreen", monospace' : 'Inter, "Segoe UI", sans-serif';
+}
+
+function hexToRgb(hex) {
+  const v = hex.replace("#", "");
+  const n = v.length === 3 ? v.split("").map((x) => x + x).join("") : v;
+  return {
+    r: parseInt(n.slice(0, 2), 16) || 0,
+    g: parseInt(n.slice(2, 4), 16) || 0,
+    b: parseInt(n.slice(4, 6), 16) || 0,
+  };
+}
+
+/** Helligkeit 0..1 - ab 0.55 gilt die Farbe als hell. */
+function luminance(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 ["ram", "col", "theme", "font"].forEach((id) => $(id).onchange = save);
 
 // --------------------------------------------------------------------- Start
 (async function () {
-  $("ver").textContent = "v" + (window.nolimiteVersion || "1.0.0");
+  $("ver").textContent = "v" + (window.saturnVersion || "1.0.0");
   document.querySelectorAll(".nb").forEach((e) => e.onclick = () => nav(e.dataset.p));
   settings = await ipc.invoke("settings");
   if (settings.ram) $("ram").value = settings.ram;
@@ -627,6 +714,7 @@ function applySettings() {
   if (settings.theme) $("theme").value = settings.theme;
   if (settings.font) $("font").value = settings.font;
   applySettings();
+  setupBackground();
 
   versions = await ipc.invoke("versions");
 

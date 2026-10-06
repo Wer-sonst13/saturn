@@ -1,9 +1,11 @@
-<!doctype html><html><head><meta charset="utf-8"><title>NoLimite</title>
+<!doctype html><html><head><meta charset="utf-8"><title>Saturn Client</title>
 <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head><body>
+<!-- Saturn als Hintergrund. assets/saturn.jpg wird bevorzugt, sonst die Grafik. -->
+<div class="bg" id="bg"></div>
 <nav>
-  <div class="logo" onclick="nav('play')" title="NoLimite"><span class="bolt">⚡</span></div>
+  <div class="logo" onclick="nav('play')" title="Saturn Client"><span class="bolt">⚡</span></div>
   <div class="nb on" data-p="play"><i>▶</i><span>Spielen</span></div>
   <div class="nb" data-p="prof"><i>▤</i><span>Profile</span></div>
   <div class="nb" data-p="mods"><i>▦</i><span>Inhalte</span></div>
@@ -15,7 +17,7 @@
 <div class="col">
   <header>
     <div class="brand">
-      <b id="brandName">NoLimite</b>
+      <b id="brandName">Saturn Client</b>
       <span class="ver" id="ver">v1.0.0</span>
     </div>
     <div class="sp"></div>
@@ -63,7 +65,7 @@
       </div>
       <aside class="side">
         <h3 class="px">Neuigkeiten</h3>
-        <div class="news n1">NoLimite 1.0 ist da</div>
+        <div class="news n1">Saturn Client 1.0 ist da</div>
         <div class="news n2" onclick="nav('mods')">Mods, Packs &amp; Shader</div>
         <div class="news n3" onclick="nav('prof')">Profile mit Spielzeit</div>
         <h3 class="px" style="margin-top:20px">Instanzen</h3>
@@ -220,7 +222,7 @@
         </div>
         <div class="setRow">
           <label>Akzentfarbe</label>
-          <input type="color" id="col" value="#7c5cff">
+          <input type="color" id="col" value="#ffffff">
         </div>
         <div class="setRow">
           <label>Theme</label>
@@ -239,12 +241,12 @@
         <hr>
         <h3 class="px">In der Minecraft-Mod</h3>
         <ul class="keys">
-          <li><b>Rechts-Shift</b> NoLimite-Menü öffnen</li>
+          <li><b>Rechts-Shift</b> Saturn-Menü öffnen</li>
           <li><b>F6</b> HUD-Editor (Elemente verschieben, Mausrad = Größe)</li>
           <li><b>F7</b> Chat Utils (Chat durchsuchen und kopieren)</li>
           <li><b>F8</b> Vanilla-HUD ein-/ausblenden</li>
         </ul>
-        <p class="info">Die Mod liegt unter <code>~/.nolimite/instances/&lt;profil&gt;/mods/nolimite.jar</code>
+        <p class="info">Die Saturn-Mod liegt unter <code>~/.saturn/instances/&lt;profil&gt;/mods/saturn.jar</code>
           und wird beim Start jedes Fabric-Profils automatisch einsortiert. Unterstützt wird Minecraft 1.21.4.</p>
         <hr>
         <button class="danger ghost" onclick="clearAll()">Alle Instanzen löschen</button>

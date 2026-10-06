@@ -1,7 +1,7 @@
 {
-  "name": "nolimite",
+  "name": "saturn",
   "version": "1.0.0",
-  "description": "NoLimite Minecraft Launcher mit Mod-Client, Instanzen und Logs",
+  "description": "Saturn Client - Minecraft-Launcher mit Client-Mod, Instanzen und Logs",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -17,17 +17,18 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "gg.nolimite.launcher",
-    "productName": "NoLimite",
+    "appId": "gg.saturn.launcher",
+    "productName": "Saturn Client",
     "win": {
       "target": "nsis",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": false,
+      "artifactName": "Saturn-Client-Setup-${version}.exe"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "NoLimite",
-      "uninstallDisplayName": "NoLimite",
+      "shortcutName": "Saturn Client",
+      "uninstallDisplayName": "Saturn Client",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     },
@@ -43,7 +44,15 @@
         "from": "resources",
         "to": "."
       }
+    ],
+    "files": [
+      "**/*",
+      "!node_modules/**",
+      "!dist/**",
+      "!mod/**",
+      "!.git/**",
+      "!*.zip"
     ]
   },
-  "author": "NoLimite"
+  "author": "Saturn"
 }

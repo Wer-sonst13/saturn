@@ -1,4 +1,4 @@
-name: Build NoLimite
+name: Build Saturn Client
 
 on:
   push:
@@ -58,11 +58,11 @@ jobs:
           "name=$($jar.Name)"    >> $env:GITHUB_OUTPUT
           Write-Host "Mod: $($jar.FullName) ($($jar.Length) Bytes)"
 
-      # resources/nolimite-mod.jar ist bewusst nicht im Repo (siehe .gitignore)
+      # resources/saturn-mod.jar ist bewusst nicht im Repo (siehe .gitignore)
       # und wird hier frisch erzeugt.
       - name: Mod in resources ablegen
         shell: pwsh
-        run: Copy-Item "${{ steps.jar.outputs.pfad }}" resources/nolimite-mod.jar -Force
+        run: Copy-Item "${{ steps.jar.outputs.pfad }}" resources/saturn-mod.jar -Force
 
       - uses: actions/setup-node@v4
         with:
@@ -75,13 +75,13 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem dist | Select-Object Name, Length
-          if (-not (Test-Path resources/nolimite-mod.jar)) {
-            throw 'Mod fehlt im Setup - resources/nolimite-mod.jar wurde nicht erzeugt'
+          if (-not (Test-Path resources/saturn-mod.jar)) {
+            throw 'Mod fehlt im Setup - resources/saturn-mod.jar wurde nicht erzeugt'
           }
 
       - uses: actions/upload-artifact@v4
         with:
-          name: NoLimite-Setup
+          name: Saturn-Client-Setup
           path: dist/*.exe
           if-no-files-found: error
 

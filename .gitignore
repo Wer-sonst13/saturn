@@ -12,7 +12,12 @@ mod/run/
 mod/out/
 
 # Die Mod wird beim Bauen erzeugt (lokal oder in GitHub Actions)
-resources/nolimite-mod.jar
+resources/saturn-mod.jar
+
+# Test-Hilfsskripte für die Oberfläche
+bwtest.js
+pagetest.js
+skinviewtest.js
 
 # Logs
 *.log

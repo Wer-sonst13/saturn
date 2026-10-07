@@ -426,6 +426,17 @@ public final class HudRenderer {
         int lg = 22;
         int tx = mitLogo ? lg + 5 : 0;
 
+        // Waagerecht mittig, wie der Name im Spiel.
+        //
+        // Standard war vorher x = 4, dadurch klebte es links oben. Jetzt
+        // wird die Verschiebung in x zurueckgenommen und durch die Mitte
+        // ersetzt. Mit der Einstellung "Mittig" aus zaehlt wieder x.
+        if (m.flag("center", true)) {
+            int sw = mc.getWindow().getScaledWidth();
+            int breite = tx + tr.getWidth(name);
+            ctx.getMatrices().translate(-m.x + (sw - breite) / 2, 0, 0);
+        }
+
         if (mitLogo) Ui.logo(ctx, 0, -14, lg, Ui.theme());
 
         Ui.text(ctx, tr, name, tx, 0, m.setting("color") == null

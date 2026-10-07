@@ -60,8 +60,12 @@ public final class Modules {
             "HUD", "user", true, false, false)
             .standardAn()
             .add(Setting.bool("logo", "Show Logo", true))
+            .add(Setting.bool("center", "Mittig", true))
             .add(Setting.color("color", "Text Color", 0xFFFFFFFF))
             .add(Setting.num("scale", "Size", 1.0, 0.4, 2.5, 0.05)));
+    // Startposition oben mittig, auf Hoehe des Namens.
+    Module.get("clienttag").x = 0;
+    Module.get("clienttag").y = 52;
     register(new Module("nametags", "Nametags",
                 "Customize and enhance player name visibility.",
                 "RENDER", "pencil", false, false, true)

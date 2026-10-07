@@ -564,22 +564,29 @@ const VORINSTALLIERT = [
   { slug: "P7dR8mSH", name: "Fabric API" },        // Pflicht, sonst laeuft nichts
   { slug: "sodium", name: "Sodium" },               // groesster clientseitiger Gewinn
   { slug: "entityculling", name: "EntityCulling" },// Entitys hinter Bloecken auslassen
+  { slug: "immediatelyfast", name: "ImmediatelyFast" }, // Entitys, Partikel, GUI
+  { slug: "ferrite-core", name: "FerriteCore" },   // weniger Speicher
+  { slug: "modernfix", name: "ModernFix" },        // Speicher, Ladezeiten
+  { slug: "dynamic-fps", name: "Dynamic FPS" },    // Bildrate senken, wenn man nicht hinsieht
+  { slug: "lithium", name: "Lithium" },            // Spiel-Logik, Weltberechnung
   { slug: "ebe", name: "Enhanced Block Entities" },// Block-Entities schneller zeichnen
-  { slug: "immediatelyfast", name: "ImmediatelyFast" }, // Render-Optimierungen
   { slug: "sodium-extra", name: "Sodium Extra" },  // Addon, braucht Sodium
-  { slug: "ferrite-core", name: "FerriteCore" },   // weniger Speicher, weniger GC
   { slug: "simple-voice-chat", name: "Simple Voice Chat" }, // Voicechat
   { slug: "third-person-nametags", name: "Nametags" },
   { slug: "fullbright", name: "Fullbright" },
 ];
 
 /*
- * Bewusst NICHT enthalten:
+ * Zur Versionsfrage: bei keinem Eintrag steht eine Version. installMods
+ * fragt Modrinth nach der neuesten Fassung, die zur Minecraft-Version der
+ * Instanz passt. Eine feste Version einzutragen wuerde sofort veralten.
  *
- * lithium, krypton, starlight, noisium - das sind Server-Optimierungen. Auf
- * einem Client bringen sie nichts, der Spieler merkt es nur auf dem Server
- * des Betreibers. Sie wuerden in der Liste gut aussehen und exakt nichts
- * bringen, deshalb sind sie nicht dabei.
+ * Fehlt ein Mod fuer eine Minecraft-Version - aktuell ModernFix bei 1.21.5 -
+ * wird es uebersprungen und geloggt. Die Instanz startet trotzdem.
+ *
+ * Lithium ist eine Server-Optimierung. Auf einem Client bringt es nichts -
+ * es ist auf Wunsch enthalten, weil es nuetzlich ist, sobald der Spieler
+ * selber einen Server betreibt.
  */
 
 /** Die Kennungen der vorinstallierten Mods, wie installMods sie braucht. */

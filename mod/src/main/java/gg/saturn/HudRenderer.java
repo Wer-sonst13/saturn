@@ -414,9 +414,10 @@ public final class HudRenderer {
             float sc = (float) m.num("scale", 1.0);
             int w = Math.round(160 * sc);
             int h = Math.round(70 * sc);
-            int right = c.getWindow().getScaledWidth() + (int) m.x;
+            // Scoreboard sitzt mittig, Versaetze von der Mitte - wie im Renderer.
+            int cx = c.getWindow().getScaledWidth() / 2 + (int) m.x;
             int cy = c.getWindow().getScaledHeight() / 2 + (int) m.y;
-            return new int[]{right - w, cy - h / 2, w, h};
+            return new int[]{cx - w / 2, cy - h / 2, w, h};
         }
         List<String> lines = lines(m, mc);
         if (lines.isEmpty()) {

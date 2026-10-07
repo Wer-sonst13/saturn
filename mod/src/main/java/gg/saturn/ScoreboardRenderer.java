@@ -121,9 +121,14 @@ public final class ScoreboardRenderer {
         int w = forcedW > 0 ? forcedW : contentW + pad * 2;
         int h = forcedH > 0 ? forcedH : titleH + bodyH + pad;
 
-        int right = scaledWidth + (int) mod.x;
-        int top = mc.getWindow().getScaledHeight() / 2 + (int) mod.y - h / 2;
-        int left = right - w;
+        // Standard ist mittig. x und y sind Versaetze von der Mitte.
+        //
+        // Vorher war der Kasten am rechten Rand verankert und lief bei
+        // breiten Zeilen aus dem Bild. Versatz 0 0 heisst jetzt: Mitte.
+        int centerX = scaledWidth / 2 + (int) mod.x;
+        int centerY = mc.getWindow().getScaledHeight() / 2 + (int) mod.y;
+        int left = centerX - w / 2;
+        int top = centerY - h / 2;
 
         MatrixStack ms = ctx.getMatrices();
         ms.push();
@@ -215,6 +220,29 @@ public final class ScoreboardRenderer {
         }
 
         Style grund = stilAusCodes(roh);
+
+        // Es gibt zwei Wege, wie ein Server eine Zeile einfärbt:
+        //   1. über §-Codes im Namen oder im Prefix   (MinesMP)
+        //   2. über die Team-Farbe                     (germansmp)
+        //
+        // Vorher wurde nur Weg 1 gelesen. Auf germansmp kam deshalb gar keine
+        // Farbe an und alles stand grau da.
+        //
+        // Achtung: getColorValue() kann null sein (Team ohne Farbe). Dann ist
+        // die Farbe weg - und 0 waere vollstaendig durchsichtig, also Texte
+        // unsichtbar. Deshalb wird hier nur gesetzt, wenn wirklich eine
+        // Farbe vorhanden ist.
+        if (grund.getColor() == null) {
+            try {
+                Team t = board.getScoreHolderTeam(name);
+                if (t != null && t.getColor() != null) {
+                    Integer wert = t.getColor().getColorValue();
+                    if (wert != null) grund = grund.withColor(TextColor.fromRgb(wert));
+                }
+            } catch (Throwable ignoriert) {
+                // dann eben unfaerbig
+            }
+        }
 
         List<Text> fertig = new ArrayList<>();
         // Der Name kann selbst Text enthalten (manche Server). Dann wird er

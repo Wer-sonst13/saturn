@@ -54,6 +54,18 @@ public abstract class SaturnScreen extends Screen {
             Ui.logo(ctx, lgX, lgY, lg, t);
             x = lgX + lg + 3 + 6;
         }
+
+        // Eigenname, wie im Vorbild direkt neben dem Logo.
+        //
+        // Der Spielername wurde vorher nirgends angezeigt - der Kopf zeigte
+        // nur den Modulnamen.
+        String spieler = client == null ? "" : client.getSession().getUsername();
+        if (spieler != null && !spieler.isEmpty()) {
+            String name = Ui.up(spieler);
+            Ui.text(ctx, textRenderer, name, x, 11, t.text);
+            x += Ui.width(textRenderer, name) + 10;
+        }
+
         String gross = Ui.up(title);
         int titelBreite = textRenderer.getWidth(gross);
 

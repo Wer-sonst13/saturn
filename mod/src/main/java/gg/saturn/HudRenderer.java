@@ -123,6 +123,7 @@ public final class HudRenderer {
             case "potionstatus": return potionList(ctx, mc, m);
             case "keystrokes": return keyBoxes(ctx, mc, m);
             case "itemcounter": return counterList(ctx, mc, m);
+            case "clienttag": return clientTag(ctx, mc, m);
             default: return textBlock(ctx, mc, m);
         }
     }
@@ -411,6 +412,58 @@ public final class HudRenderer {
     // ---------------- Rechtecke für den HUD-Editor ----------------
 
     /** {x, y, breite, höhe} eines Elements. */
+    /**
+     * Logo vor Name und Rang.
+     *
+     * Der Text ist derselbe wie ueber dem Spieler: Team-Praefix des Servers
+     * plus Spielername. Dadurch steht "MEMBER TOXIC_EV" mit Logo, egal auf
+     * welchem Server man ist.
+     */
+    private static int clientTag(DrawContext ctx, MinecraftClient mc, Module m) {
+        var tr = mc.textRenderer;
+        String name = clientTagText(mc);
+        boolean mitLogo = m.flag("logo", true);
+        int lg = 22;
+        int tx = mitLogo ? lg + 5 : 0;
+
+        if (mitLogo) Ui.logo(ctx, 0, -14, lg, Ui.theme());
+
+        Ui.text(ctx, tr, name, tx, 0, m.setting("color") == null
+                ? 0xFFFFFFFF : m.setting("color").asColor());
+
+        // Hoehe zurueckgeben, damit nichts darueber laeuft.
+        return Math.max(mitLogo ? lg : 0, 9);
+    }
+
+    /** Anzeigename des eigenen Spielers inklusive Rang-Praefix vom Server. */
+    public static String clientTagText(MinecraftClient mc) {
+        MinecraftClient c = mc == null ? MinecraftClient.getInstance() : mc;
+        if (c.player == null) return "";
+        try {
+            var meth = net.minecraft.client.network.AbstractClientPlayerEntity.class
+                    .getDeclaredMethod("getPlayerListEntry");
+            meth.setAccessible(true);
+            Object ple = meth.invoke(c.player);
+            if (ple instanceof net.minecraft.client.network.PlayerListEntry e) {
+                String name = e.getProfile() != null ? e.getProfile().getName() : c.player.getName().getString();
+                var team = e.getScoreboardTeam();
+                if (team != null) {
+                    String p = team.getPrefix().getString().trim();
+                    if (!p.isEmpty()) return p + " " + name;
+                }
+                return name;
+            }
+        } catch (Throwable ignored) {
+        }
+        return c.player.getName().getString();
+    }
+
+    private static int[] clientTagGroesse(MinecraftClient mc) {
+        var tr = (mc == null ? MinecraftClient.getInstance() : mc).textRenderer;
+        String s = clientTagText(mc);
+        int w = tr.getWidth(s);
+        return new int[]{w + 28, Math.max(22, 9)};
+    }
     public static int[] bounds(String id, MinecraftClient mc) {
         Module m = Module.get(id);
         if (m == null) return new int[]{0, 0, 0, 0};
@@ -458,6 +511,8 @@ public final class HudRenderer {
      * Rahmen im Editor nicht mehr auf das, was tatsaechlich gezeichnet wird.
      */
     private static int[] iconRahmen(String id) {
+        // Das Client-Tag braucht den Text, um seine Breite zu kennen.
+        if (id.equals("clienttag")) return clientTagGroesse(null);
         switch (id) {
             case "armorhud": return new int[]{44, 64};      // 4 Slots + Prozent
             case "armorstatus": return new int[]{22, 44};   // 4 Fuellstaende

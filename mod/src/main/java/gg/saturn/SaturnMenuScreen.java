@@ -157,11 +157,13 @@ public class SaturnMenuScreen extends SaturnScreen {
 
         // Saturn-Logo oben links in der Ecke des Fensters.
         //
-        // Die Textur ist 64x64, hier wird sie auf 22 heruntergezogen. Das
-        // Logo liegt ueber dem Leistenhintergrund, deshalb wird es danach
-        // gezeichnet.
+        // Die Textur ist 64x64 und fast schwarz (gemessen: RGB 0,0,0 bis
+        // 25,24,20). Ohne Rahmen verschwindet sie auf dem dunklen Grund -
+        // sie wurde lange fuer "nicht geladen" gehalten. Ein heller Rahmen
+        // macht die Kanten sichtbar.
         int lg = 22;
         int lgX = x + 6, lgY = y + 7;
+        ctx.fill(lgX - 1, lgY - 1, lgX + lg + 1, lgY + lg + 1, Ui.withAlpha(t.accent, 0.55f));
         ctx.drawTexture(RenderLayer::getGuiTextured, Logo.LOGO,
                 lgX, lgY, 0.0f, 0.0f, lg, lg, lg, lg);
 

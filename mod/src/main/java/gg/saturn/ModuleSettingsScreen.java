@@ -13,6 +13,17 @@ import java.util.List;
  */
 public class ModuleSettingsScreen extends SaturnScreen {
 
+    /**
+     * Breite des Fensters in GUI-Pixeln.
+     *
+     * Die Seite lag vorher ueber die volle Bildschirmbreite. Bei einem
+     * Regler, der links steht und einem Auswahlfeld weit rechts, entsteht
+     * dazwischen eine leere Wueste. Eine feste Breite haelt beides zusammen.
+     */
+    private static final int FENSTER_B = 440;
+    private static final int KOPF_H = 46;
+    private static final int FUSS_H = 22;
+
     private final Module module;
     private Screen after;
 
@@ -21,6 +32,9 @@ public class ModuleSettingsScreen extends SaturnScreen {
     private String openDropdown;
     private boolean editing;
     private boolean resetPressed;
+    /** Trefferflaechen, die beim Zeichnen entstehen und beim Klick gebraucht werden. */
+    private int[] anTreffer = new int[4];
+    private int[] resetTreffer = new int[4];
 
     public ModuleSettingsScreen(Module module, Screen parent) {
         super(module.name, parent);
@@ -28,11 +42,14 @@ public class ModuleSettingsScreen extends SaturnScreen {
         this.after = parent;
     }
 
+    private int fensterB() { return Math.min(FENSTER_B, width - 20); }
+    private int fensterX() { return width / 2 - fensterB() / 2; }
+
     @Override
     protected void init() {
         super.init();
-        top = 40;
-        bottom = height - 26;
+        top = fensterY() + KOPF_H + 6;
+        bottom = fensterY() + fensterH() - FUSS_H - 4;
         visible = new ArrayList<>();
         // Scoreboard hat eine eigene Seite, dort keine generischen Regler zeigen
         for (Setting s : module.settings) {
@@ -41,6 +58,9 @@ public class ModuleSettingsScreen extends SaturnScreen {
             visible.add(s);
         }
     }
+
+    private int fensterH() { return Math.min(280, height - 70); }
+    private int fensterY() { return Math.max(26, height / 2 - fensterH() / 2); }
 
     private int rowHeight(Setting s) {
         if (s.type == Setting.Type.CHOICE) {
@@ -66,44 +86,52 @@ public class ModuleSettingsScreen extends SaturnScreen {
         drawBackdrop(ctx);
         drawHeader(ctx, module.name, Ui.up(module.category), true);
 
-        // Kopfzeile des Moduls
-        int hx = 8, hy = 34, hw = width - 16, hh = 44;
+        int fx = fensterX(), fw = fensterB(), fy = fensterY();
+
+        // Fenster wie im Modul-Menue
+        Ui.panel(ctx, fx, fy, fw, fensterH(), t);
+        Ui.outline(ctx, fx, fy, fw, fensterH(), Ui.withAlpha(t.accent, 0.30f));
+
+        // Kopfzeile des Moduls, jetzt im Fenster
+        int hx = fx + 8, hy = fy + 5, hw = fw - 16, hh = KOPF_H - 6;
         Ui.card(ctx, hx, hy, hw, hh, t, false, module.enabled);
-        Icons.draw(ctx, module.icon, hx + 8, hy + 8, 2, module.enabled ? t.accent : t.dim, "LINE");
-        Ui.text(ctx, textRenderer, Ui.up(module.name), hx + 34, hy + 8, t.text);
-        List<String> lines = Ui.wrap(textRenderer, module.desc, hw - 150, 2);
-        int ly = hy + 20;
+        Icons.draw(ctx, module.icon, hx + 7, hy + 7, 2, module.enabled ? t.accent : t.dim, "LINE");
+        Ui.text(ctx, textRenderer, Ui.up(module.name), hx + 32, hy + 7, t.text);
+        List<String> lines = Ui.wrap(textRenderer, module.desc, hw - 32 - 80, 2);
+        int ly = hy + 18;
         for (String l : lines) {
-            if (ly > hy + hh - 4) break;
-            Ui.text(ctx, textRenderer, l, hx + 34, ly, Ui.withAlpha(t.dim, 0.9f));
+            if (ly > hy + hh - 3) break;
+            Ui.text(ctx, textRenderer, l, hx + 32, ly, Ui.withAlpha(t.dim, 0.9f));
             ly += 9;
         }
-        Ui.button(ctx, textRenderer, hx + hw - 70, hy + 12, 60, 20, module.enabled ? "AN" : "AUS",
-                t, hovering(hx + hw - 70, hy + 12, 60, 20), module.enabled);
+        int anB = 58, anX = hx + hw - anB - 8, anY = hy + hh / 2 - 9;
+        Ui.button(ctx, textRenderer, anX, anY, anB, 18, module.enabled ? "AN" : "AUS",
+                t, hovering(anX, anY, anB, 18), module.enabled);
+        anTreffer = new int[]{anX, anY, anB, 18};
 
-        top = 84;
-        bottom = height - 26;
+        top = fy + KOPF_H + 6;
+        bottom = fy + fensterH() - FUSS_H - 4;
 
-        ctx.enableScissor(0, top - 1, width, bottom + 1);
+        ctx.enableScissor(fx + 1, top - 1, fx + fw - 1, bottom + 1);
         scroll = clampScroll(scroll, contentHeight(), bottom - top);
         drawRows(ctx, t);
         ctx.disableScissor();
-        Ui.scrollbar(ctx, width - 6, top, bottom - top, contentHeight(), bottom - top, scroll, t);
+        Ui.scrollbar(ctx, fx + fw - 6, top, bottom - top, contentHeight(), bottom - top, scroll, t);
 
         drawFooter(ctx, t);
         super.render(ctx, mx, my, delta);
     }
 
     private void drawRows(DrawContext ctx, Ui.Theme t) {
-        int x = 10;
-        int w = width - 24;
+        int x = fensterX() + 8;
+        int w = fensterB() - 20;
         int y = top - (int) scroll;
 
         for (Setting s : visible) {
             int rh = rowHeight(s);
             if (y + rh >= top - 2 && y <= bottom + 2) {
                 Ui.card(ctx, x, y, w, Math.min(rh - 4, bottom - y), t, false, false);
-                drawSetting(ctx, t, s, x + 6, y + 6, w - 12);
+                drawSetting(ctx, t, s, x + 8, y + 6, w - 16);
             }
             y += rh + 4;
         }
@@ -130,11 +158,17 @@ public class ModuleSettingsScreen extends SaturnScreen {
                 break;
             }
             case CHOICE: {
-                int dh = 18;
-                int dy = y + 11;
+                // Das Feld sitzt direkt rechts vom Label statt am Fensterende.
+                // Sonst steht es bei breiten Fenstern weit weg.
+                int dh = 16;
+                int dy = y + 10;
+                String wert = s.asString();
+                int dw = Math.max(70, textRenderer.getWidth(Ui.up(wert)) + 34);
+                dw = Math.min(dw, w - Math.min(90, Ui.width(textRenderer, Ui.up(s.label)) + 10));
+                int dx = x + w - dw;
                 Ui.text(ctx, textRenderer, Ui.up(s.label), x, y, t.text);
                 List<String> opts = new ArrayList<>(s.choices);
-                Ui.dropdown(ctx, textRenderer, x + w - 150, dy, 150, dh, s.asString(), opts,
+                Ui.dropdown(ctx, textRenderer, dx, dy, dw, dh, wert, opts,
                         openDropdown != null && openDropdown.equals(s.key), t, false);
                 break;
             }
@@ -152,14 +186,17 @@ public class ModuleSettingsScreen extends SaturnScreen {
     }
 
     private void drawFooter(DrawContext ctx, Ui.Theme t) {
-        int y = height - 22;
-        Ui.fill(ctx, 0, y, width, 22, 0xE60B0D12);
-        Ui.outline(ctx, 0, y, width, 1, Ui.withAlpha(t.accent, 0.35f));
-        Ui.button(ctx, textRenderer, 8, y + 3, 90, 16, "Zurücksetzen", t,
-                hovering(8, y + 3, 90, 16), resetPressed);
-        Ui.button(ctx, textRenderer, 102, y + 3, 70, 16, "Alle aus", t, hovering(102, y + 3, 70, 16), false);
-        String h = "Änderungen werden sofort gespeichert";
-        Ui.text(ctx, textRenderer, h, width - 8 - textRenderer.getWidth(h), y + 8, Ui.withAlpha(t.dim, 0.8f));
+        int fx = fensterX(), fw = fensterB();
+        int y = fensterY() + fensterH() - FUSS_H;
+        Ui.fill(ctx, fx, y, fx + fw, y + FUSS_H, 0xE60B0D12);
+        Ui.outline(ctx, fx, y, fw, 1, Ui.withAlpha(t.accent, 0.28f));
+        int rx = fx + 8, ry = y + 3, rw = 84, rh = 16;
+        Ui.button(ctx, textRenderer, rx, ry, rw, rh, "Zurücksetzen", t,
+                hovering(rx, ry, rw, rh), resetPressed);
+        resetTreffer = new int[]{rx, ry, rw, rh};
+        String h = "SOFORT GESPEICHERT";
+        Ui.text(ctx, textRenderer, h, fx + fw - 8 - Ui.width(textRenderer, h), y + 8,
+                Ui.withAlpha(t.dim, 0.7f));
     }
 
     // ------------------------------------------------------------------ Klicks
@@ -172,43 +209,30 @@ public class ModuleSettingsScreen extends SaturnScreen {
             return true;
         }
 
-        // Scoreboard hat eine eigene, eigene Seite
-        if (module.id.equals("scoreboard")
-                && Ui.inside(mx, my, width - 78, 46, 60, 20)) {
-            client.setScreen(parent);
-            return true;
-        }
-
-        // Modul an/aus
-        if (Ui.inside(mx, my, width - 78, 46, 60, 20)) {
+        // Modul an/aus - Feld sitzt jetzt im Kopf des Fensters
+        if (Ui.inside(mx, my, anTreffer[0], anTreffer[1], anTreffer[2], anTreffer[3])) {
             module.enabled = !module.enabled;
             ConfigStore.save();
             return true;
         }
 
-        // Fußzeile
-        int fy = height - 19;
-        if (Ui.inside(mx, my, 8, fy, 90, 16)) {
+        // Fußzeile: nur noch Zurücksetzen
+        if (Ui.inside(mx, my, resetTreffer[0], resetTreffer[1], resetTreffer[2], resetTreffer[3])) {
             for (Setting s : module.settings) s.value = s.defaultValue();
             module.enabled = true;
             module.scale = 1.0;
             ConfigStore.save();
             return true;
         }
-        if (Ui.inside(mx, my, 102, fy, 70, 16)) {
-            module.enabled = false;
-            ConfigStore.save();
-            return true;
-        }
 
         // Zeilen treffen
-        int x = 10;
-        int w = width - 24;
+        int x = fensterX() + 8;
+        int w = fensterB() - 20;
         int y = top - (int) scroll;
         for (Setting s : visible) {
             int rh = rowHeight(s);
             if (Ui.inside(mx, my, x, y, w, rh - 4)) {
-                handleClick(s, mx - x, my - y, w - 12, x, y);
+                handleClick(s, mx - x, my - y, w - 16, x, y);
                 return true;
             }
             y += rh + 4;

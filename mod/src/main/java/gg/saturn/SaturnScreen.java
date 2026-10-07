@@ -2,6 +2,7 @@ package gg.saturn;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -39,9 +40,19 @@ public abstract class SaturnScreen extends Screen {
         int h = 26;
         ctx.fill(0, 0, width, h, 0xE60B0D12);
         Ui.outline(ctx, 0, h - 1, width, 1, Ui.withAlpha(t.accent, 0.35f));
-        Icons.draw(ctx, "bolt", 8, 9, 1, Ui.withAlpha(t.accent, 0.95f), "LINE");
 
-        int x = 22;
+        // Echtes Saturn-Logo statt eines Blitz-Symbols.
+        //
+        // Die Textur ist fast schwarz (gemessen: RGB 0,0,0 bis 25,24,20),
+        // darum bekommt sie einen hellen Rahmen - ohne ihn ist auf dem
+        // dunklen Kopf nichts zu sehen.
+        int lg = 16;
+        int lgX = 7, lgY = (h - lg) / 2;
+        ctx.fill(lgX - 1, lgY - 1, lgX + lg + 1, lgY + lg + 1, Ui.withAlpha(t.accent, 0.6f));
+        ctx.drawTexture(RenderLayer::getGuiTextured, Logo.LOGO,
+                lgX, lgY, 0.0f, 0.0f, lg, lg, lg, lg);
+
+        int x = 28;
         String gross = Ui.up(title);
         int titelBreite = textRenderer.getWidth(gross);
 

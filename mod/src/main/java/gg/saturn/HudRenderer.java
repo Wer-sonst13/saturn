@@ -82,6 +82,11 @@ public final class HudRenderer {
 
     public static void renderAll(DrawContext ctx, MinecraftClient mc) {
         if (mc.options.hudHidden || SaturnClient.menuOpen()) return;
+
+        // Solange ein Saturn-Fenster offen ist, nicht mitzeichnen. Vorher
+        // lagen FPS, Ping und Coords im Hub und auf dem Mod-Menue oben drauf
+        // und die Schrift lief ineinander.
+        if (mc.currentScreen instanceof SaturnScreen) return;
         for (Module m : Modules.hudModules()) {
             if (!m.enabled || m.id.equals("scoreboard")) continue;
             draw(ctx, mc, m);

@@ -47,8 +47,7 @@
     ],
     "files": [
       "**/*",
-      "!node_modules/**",
-      "!dist/**",
+            "!dist/**",
       "!mod/**",
       "!.git/**",
       "!*.zip"

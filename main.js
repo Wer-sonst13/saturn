@@ -562,10 +562,25 @@ ipcMain.handle("logs", (_, id) => {
  */
 const VORINSTALLIERT = [
   { slug: "P7dR8mSH", name: "Fabric API" },        // Pflicht, sonst laeuft nichts
-  { slug: "sodium", name: "Sodium" },
+  { slug: "sodium", name: "Sodium" },               // groesster clientseitiger Gewinn
+  { slug: "entityculling", name: "EntityCulling" },// Entitys hinter Bloecken auslassen
+  { slug: "ebe", name: "Enhanced Block Entities" },// Block-Entities schneller zeichnen
+  { slug: "immediatelyfast", name: "ImmediatelyFast" }, // Render-Optimierungen
+  { slug: "sodium-extra", name: "Sodium Extra" },  // Addon, braucht Sodium
+  { slug: "ferrite-core", name: "FerriteCore" },   // weniger Speicher, weniger GC
+  { slug: "simple-voice-chat", name: "Simple Voice Chat" }, // Voicechat
   { slug: "third-person-nametags", name: "Nametags" },
   { slug: "fullbright", name: "Fullbright" },
 ];
+
+/*
+ * Bewusst NICHT enthalten:
+ *
+ * lithium, krypton, starlight, noisium - das sind Server-Optimierungen. Auf
+ * einem Client bringen sie nichts, der Spieler merkt es nur auf dem Server
+ * des Betreibers. Sie wuerden in der Liste gut aussehen und exakt nichts
+ * bringen, deshalb sind sie nicht dabei.
+ */
 
 /** Die Kennungen der vorinstallierten Mods, wie installMods sie braucht. */
 const vorinstalliertSlugs = () => VORINSTALLIERT.map((m) => m.slug);

@@ -89,10 +89,18 @@ public final class HudRenderer {
         if (mc.currentScreen instanceof SaturnScreen) return;
         for (Module m : Modules.hudModules()) {
             if (!m.enabled || m.id.equals("scoreboard")) continue;
+            Profiler.start(m.id);
             draw(ctx, mc, m);
+            Profiler.stop(m.id);
         }
+        Profiler.start("nametags");
         if (mc.currentScreen == null) if (module("nametags")) NametagRenderer.render(ctx);
+        Profiler.stop("nametags");
+        Profiler.start("overlay");
         Effects.renderOverlay(ctx, mc);
+        Profiler.stop("overlay");
+        Profiler.frameEnde(mc);
+        Profiler.zeichnen(ctx, mc);
     }
 
     private static boolean module(String id) {

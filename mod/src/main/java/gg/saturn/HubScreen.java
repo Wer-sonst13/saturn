@@ -111,9 +111,7 @@ public class HubScreen extends SaturnScreen {
         int lx = mitte - logoW / 2, ly = blockY();
         // Heller Rahmen: die Textur ist fast schwarz (gemessen RGB 0,0,0
         // bis 25,24,20) und verschwindet sonst auf dem dunklen Grund.
-        ctx.fill(lx - 2, ly - 2, lx + logoW + 2, ly + logoH + 2, Ui.withAlpha(t.accent, 0.55f));
-        ctx.drawTexture(RenderLayer::getGuiTextured, Logo.LOGO, lx, ly,
-                0.0f, 0.0f, logoW, logoH, logoW, logoH);
+        Ui.logo(ctx, lx, ly, logoW, t);
 
         // Name mittig darunter - mit demselben Abstand wie beim Knopf,
         // damit er nicht darauf liegt.
@@ -157,9 +155,8 @@ public class HubScreen extends SaturnScreen {
         // dunklen Grund unsichtbar - wie im Hub-Menue vorher.
         int lg = 16;
         int lgX = mitte - lg / 2, lgY = 19;
-        ctx.fill(lgX - 1, lgY - 1, lgX + lg + 1, lgY + lg + 1, Ui.withAlpha(t.accent, 0.55f));
-        ctx.drawTexture(RenderLayer::getGuiTextured, Logo.LOGO, lgX, lgY,
-                0.0f, 0.0f, lg, lg, lg, lg);
+        Module iconMod = Module.get("icon");
+        if (iconMod == null || iconMod.enabled) Ui.logo(ctx, lgX, lgY, lg, t);
 
         for (Module m : Modules.hudModules()) {
             if (!m.enabled) continue;

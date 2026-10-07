@@ -2,6 +2,7 @@ package gg.saturn;
 
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.render.RenderLayer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -75,6 +76,25 @@ public final class Ui {
     public static void panel(DrawContext ctx, int x, int y, int w, int h, Theme t) {
         fill(ctx, x, y, w, h, t.bg);
         outline(ctx, x, y, w, h, t.border);
+    }
+
+    /**
+     * Das Saturn-Logo in einem sauberen Rahmen.
+     *
+     * Das Bild selbst ist dunkel (schwarzer Himmel mit dem Planeten). Damit
+     * es sich vom Grund abhebt, bekommt es eine eigene dunkle Platte mit
+     * Abstand und einen feinen Rahmen. Frueher lag nur ein 1-Pixel-Rand
+     * direkt unter dem Bild, wodurch das Logo am Rahmen klebte.
+     *
+     * An drei Stellen benutzt: Modul-Menue, Hub und Hub-Editor.
+     */
+    public static void logo(DrawContext ctx, int x, int y, int groesse, Theme t) {
+        int r = 3;   // Abstand zwischen Rahmen und Bild
+        int a = groesse + r * 2;
+        fill(ctx, x - r, y - r, a, a, 0xFF0E0E0E);
+        outline(ctx, x - r, y - r, a, a, withAlpha(t.accent, 0.8f));
+        ctx.drawTexture(RenderLayer::getGuiTextured, Logo.LOGO, x, y,
+                0.0f, 0.0f, groesse, groesse, groesse, groesse);
     }
 
     public static void outline(DrawContext ctx, int x, int y, int w, int h, int color) {

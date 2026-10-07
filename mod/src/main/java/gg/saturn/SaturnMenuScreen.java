@@ -161,11 +161,8 @@ public class SaturnMenuScreen extends SaturnScreen {
         // 25,24,20). Ohne Rahmen verschwindet sie auf dem dunklen Grund -
         // sie wurde lange fuer "nicht geladen" gehalten. Ein heller Rahmen
         // macht die Kanten sichtbar.
-        int lg = 22;
-        int lgX = x + 6, lgY = y + 7;
-        ctx.fill(lgX - 1, lgY - 1, lgX + lg + 1, lgY + lg + 1, Ui.withAlpha(t.accent, 0.55f));
-        ctx.drawTexture(RenderLayer::getGuiTextured, Logo.LOGO,
-                lgX, lgY, 0.0f, 0.0f, lg, lg, lg, lg);
+        Module iconMod = Module.get("icon");
+        if (iconMod == null || iconMod.enabled) Ui.logo(ctx, x + 9, y + 10, 22, t);
 
         for (int i = 0; i < BEREICHE.length; i++) {
             int bx = TREFFER[i * 4], by = TREFFER[i * 4 + 1];

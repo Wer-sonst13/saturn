@@ -41,18 +41,18 @@ public abstract class SaturnScreen extends Screen {
         ctx.fill(0, 0, width, h, 0xE60B0D12);
         Ui.outline(ctx, 0, h - 1, width, 1, Ui.withAlpha(t.accent, 0.35f));
 
-        // Echtes Saturn-Logo statt eines Blitz-Symbols.
+        // Kleines Logo direkt vor dem Namen, wie bei Norisk.
         //
-        // Die Textur ist fast schwarz (gemessen: RGB 0,0,0 bis 25,24,20),
-        // darum bekommt sie einen hellen Rahmen - ohne ihn ist auf dem
-        // dunklen Kopf nichts zu sehen.
-        int lg = 16;
-        int lgX = 7, lgY = (h - lg) / 2;
-        ctx.fill(lgX - 1, lgY - 1, lgX + lg + 1, lgY + lg + 1, Ui.withAlpha(t.accent, 0.6f));
-        ctx.drawTexture(RenderLayer::getGuiTextured, Logo.LOGO,
-                lgX, lgY, 0.0f, 0.0f, lg, lg, lg, lg);
-
-        int x = 28;
+        // Ueber das Modul "icon" ein- und ausschaltbar. Ist es aus, rueckt
+        // der Titel nach links und der Platz bleibt frei.
+        int x = 8;
+        Module icon = Module.get("icon");
+        if (icon == null || icon.enabled) {
+            int lg = 14;
+            int lgX = x, lgY = (h - lg) / 2;
+            Ui.logo(ctx, lgX, lgY, lg, t);
+            x = lgX + lg + 3 + 5;
+        }
         String gross = Ui.up(title);
         int titelBreite = textRenderer.getWidth(gross);
 

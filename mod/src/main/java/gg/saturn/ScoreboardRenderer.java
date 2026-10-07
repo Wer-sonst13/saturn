@@ -230,7 +230,7 @@ public final class ScoreboardRenderer {
         // Grundfarbe aus dem Namen gesetzt - so wie im Original.
         String beitrag = prefix + suffix;
         if (!ohneCodes(beitrag).isBlank()) {
-            for (Text teil : legy(beitrag)) {
+            for (Text teil : legy(beitrag, grund)) {
                 fertig.add(teil.copy());
             }
         }
@@ -317,7 +317,7 @@ public final class ScoreboardRenderer {
      * Gibt je Zeile (Umbruch) einen eigenen Text zurueck, damit mehrere
      * Zeilen getrennt gezeichnet werden koennen.
      */
-    private static List<Text> legy(String s) {
+    private static List<Text> legy(String s, Style start) {
         List<Text> raus = new ArrayList<>();
         MutableText zeile = Text.empty();
         Style stil = Style.EMPTY;

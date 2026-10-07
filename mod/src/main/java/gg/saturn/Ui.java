@@ -128,22 +128,35 @@ public final class Ui {
     public static List<String> wrap(TextRenderer tr, String s, int maxWidth, int maxLines) {
         List<String> out = new ArrayList<>();
         if (s == null || s.isEmpty()) return out;
-        for (String paragraph : s.split(" ")) {
-            if (paragraph.isEmpty()) continue;
-            String line = out.isEmpty() ? paragraph : out.get(out.size() - 1) + " " + paragraph;
-            if (tr.getWidth(line) <= maxWidth) {
-                if (out.isEmpty()) out.add(paragraph);
-                else out.set(out.size() - 1, line);
-                continue;
+
+        // Greedy: an die letzte Zeile anhaengen, wenn sie noch passt,
+        // sonst eine neue anfangen.
+        //
+        // Vorher stand hier "out.add(line)" - wobei line die letzte Zeile
+        // PLUS das neue Wort enthielt. Damit wurde der alte Inhalt ein
+        // zweites Mal an den Anfang der neuen Zeile geschrieben, und jede
+        // Beschreibung erschien doppelt.
+        for (String wort : s.split(" ")) {
+            if (wort.isEmpty()) continue;
+            if (out.isEmpty()) {
+                out.add(wort);
+            } else {
+                String kandidat = out.get(out.size() - 1) + " " + wort;
+                if (tr.getWidth(kandidat) <= maxWidth) {
+                    out.set(out.size() - 1, kandidat);
+                } else {
+                    out.add(wort);
+                }
             }
-            if (!out.isEmpty()) out.add(line.length() > maxWidth ? tr.trimToWidth(line, maxWidth) : line);
-            if (maxLines > 0 && out.size() >= maxLines) break;
-            out.add(tr.trimToWidth(paragraph, maxWidth));
             if (maxLines > 0 && out.size() >= maxLines) break;
         }
-        if (maxLines > 0) {
+
+        // Passt mehr, als erlaubt ist, die letzte Zeile kuerzen.
+        if (maxLines > 0 && out.size() > maxLines) {
             while (out.size() > maxLines) out.remove(out.size() - 1);
-            if (!out.isEmpty()) out.set(out.size() - 1, tr.trimToWidth(out.get(out.size() - 1) + " ...", maxWidth));
+            String letzte = out.get(out.size() - 1);
+            if (tr.getWidth(letzte + " ...") > maxWidth) letzte = letzte + " ...";
+            out.set(out.size() - 1, letzte);
         }
         return out;
     }

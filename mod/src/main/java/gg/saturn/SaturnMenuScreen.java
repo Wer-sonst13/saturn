@@ -26,7 +26,7 @@ public class SaturnMenuScreen extends SaturnScreen {
  * Breiter als das wirkt es leer, und die Karten werden so breit, dass Name
  * und Beschreibung auseinandergezogen werden.
  */
-private static final int MAX_BREITE = 940;
+private static final int MAX_BREITE = 620;
 
     private String category = "ALL";
     private String search = "";

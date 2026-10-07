@@ -277,6 +277,28 @@ public final class Modules {
     }
 
     /** Alle Module, die im Spiel als HUD-Element sichtbar platziert werden kÃ¶nnen. */
+/**
+     * HUD-Module, einmal gebaut und dann wiederverwendet.
+     *
+     * Bisher wurde die Liste bei jedem Aufruf neu zusammengesetzt, und
+     * Module.all() liefert zusaetzlich jedes Mal eine Kopie aller Module.
+     * Im Bildschirmpfad kostet das zwei frische Listen und rund 80
+     * Durchlaeufe - pro Bild.
+     *
+     * Module werden nur beim Start registriert und nie zur Laufzeit
+     * entfernt oder zugefuegt. Deshalb kann die Liste einmal stehen bleiben.
+     */
+    private static java.util.List<Module> hudCache;
+
+    public static java.util.List<Module> hudModulesCached() {
+        if (hudCache == null) {
+            java.util.List<Module> out = new java.util.ArrayList<>();
+            for (Module m : Module.all()) if (m.hud) out.add(m);
+            hudCache = java.util.Collections.unmodifiableList(out);
+        }
+        return hudCache;
+    }
+
     public static java.util.List<Module> hudModules() {
         java.util.List<Module> out = new java.util.ArrayList<>();
         for (Module m : Module.all()) if (m.hud) out.add(m);

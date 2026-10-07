@@ -87,7 +87,7 @@ public final class HudRenderer {
         // lagen FPS, Ping und Coords im Hub und auf dem Mod-Menue oben drauf
         // und die Schrift lief ineinander.
         if (mc.currentScreen instanceof SaturnScreen) return;
-        for (Module m : Modules.hudModules()) {
+        for (Module m : Modules.hudModulesCached()) {
             if (!m.enabled || m.id.equals("scoreboard")) continue;
             Profiler.start(m.id);
             draw(ctx, mc, m);

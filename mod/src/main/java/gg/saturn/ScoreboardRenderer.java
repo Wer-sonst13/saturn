@@ -320,7 +320,9 @@ public final class ScoreboardRenderer {
     private static List<Text> legy(String s, Style start) {
         List<Text> raus = new ArrayList<>();
         MutableText zeile = Text.empty();
-        Style stil = Style.EMPTY;
+        // Mit der Grundfarbe aus dem Namen beginnen: Abschnitte ohne eigenen
+        // Code erben sie, Abschnitte mit Code uebersteuern sie.
+        Style stil = (start == null) ? Style.EMPTY : start;
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
             if (c == '\u00A7' && i + 1 < s.length()) {

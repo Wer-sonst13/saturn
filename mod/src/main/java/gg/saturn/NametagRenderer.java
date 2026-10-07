@@ -43,7 +43,7 @@ public final class NametagRenderer {
         // Sichtbare Lebewesen einsammeln, nach Entfernung sortiert (hinten zuerst)
         List<LivingEntity> targets = world.getEntitiesByClass(LivingEntity.class,
                 mc.player.getBoundingBox().expand(64.0),
-                e -> e.isAlive() && e != mc.getCameraEntity());
+                e -> e != mc.player && e.isAlive() && e != mc.getCameraEntity());
         targets.sort(Comparator.comparingDouble(e -> e.squaredDistanceTo(mc.player)));
 
         Vec3d cam = mc.gameRenderer.getCamera().getPos();
@@ -52,21 +52,16 @@ public final class NametagRenderer {
         float cosPitch = (float) Math.cos(-mc.gameRenderer.getCamera().getPitch() * Math.PI / 180.0);
         float sinPitch = (float) Math.sin(-mc.gameRenderer.getCamera().getPitch() * Math.PI / 180.0);
 
-        // Der eigene Spieler wird mitgezeichnet, damit ueber ihm dasselbe
-        // steht wie in der Spielerliste - mit dem Logo davor.
-        Module tagMod = Module.get("clienttag");
-        boolean logoAn = m.flag("ownLogo", true) && tagMod != null && tagMod.flag("logo", true);
-
         for (Entity e : targets) {
-            boolean selbst = e == mc.player;
-            if (selbst && !logoAn) continue;
+            if (e instanceof net.minecraft.entity.player.PlayerEntity pe && hideSelf && pe == mc.player) continue;
 
             Vec3d rel = e.getPos().add(0, e.getEyeHeight(e.getPose()) + 0.3, 0).subtract(cam);
+            // in den Kameraraum drehen
             float x = (float) (rel.x * cosYaw - rel.z * sinYaw);
             float z = (float) (rel.x * sinYaw + rel.z * cosYaw);
             float y = (float) (rel.y * cosPitch - z * sinPitch);
             z = (float) (rel.y * sinPitch + z * cosPitch);
-            if (z <= 0.05f) continue;
+            if (z <= 0.05f) continue;   // hinter der Kamera
 
             double dist = Math.sqrt(rel.x * rel.x + rel.y * rel.y + rel.z * rel.z);
             if (dist > 64.0) continue;
@@ -76,18 +71,17 @@ public final class NametagRenderer {
             if (sx < -80 || sx > w + 80 || sy < -20 || sy > h + 20) continue;
 
             String name = displayName(e);
+            int tw = tr.getWidth(name);
             float s = Math.max(0.5f, Math.min(2f, scale));
-            int lg = 22;
-            int tx = (selbst && logoAn) ? lg + 3 : 0;
-            int tws = Math.round(tr.getWidth(name) * s);
+            int tws = Math.round(tw * s);
             int ths = Math.round(9 * s);
-            int txs = Math.round(tx * s);
-            int x0 = sx - (tws + txs) / 2;
+            int x0 = sx - tws / 2;
             int y0 = sy - ths;
 
             if (background) {
-                ctx.fill(x0 - 2, y0 - 1, x0 + tws + txs + 2, y0 + ths + 1, 0x80000000);
+                ctx.fill(x0 - 2, y0 - 1, x0 + tws + 2, y0 + ths + 1, 0x80000000);
             }
+            // Entfernungs-Abblendung
             float fade = (float) Math.max(0.35, 1.0 - dist / 64.0);
             int c = Ui.withAlpha(color, fade);
 
@@ -95,12 +89,10 @@ public final class NametagRenderer {
             ms.push();
             ms.translate(x0, y0, 0);
             ms.scale(s, s, 1f);
-            if (selbst && logoAn) Ui.logo(ctx, 0, -5, lg, Ui.theme());
-            ctx.drawText(tr, name, tx, 0, c, true);
+            ctx.drawText(tr, name, 0, 0, c, true);
             ms.pop();
         }
     }
-
 
     private static String displayName(Entity e) {
         if (e instanceof AbstractClientPlayerEntity acpe) {

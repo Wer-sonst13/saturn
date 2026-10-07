@@ -50,23 +50,7 @@ public final class Modules {
                 "RENDER", "square", false, false, false)
                 .standardAn());
 
-        // Eigenes Kennzeichen: Logo vor Name und Rang.
-    //
-    // Rang und Name kommen vom Server - der Rang steckt im Team-Praefix der
-    // Spielerliste. Deshalb steht hier derselbe Text wie ueber dem Spieler,
-    // nur eben mit dem Logo davor und frei platzierbar.
-    register(new Module("clienttag", "Client Tag",
-            "Shows the logo in front of your name and rank.",
-            "HUD", "user", true, false, false)
-            .standardAn()
-            .add(Setting.bool("logo", "Show Logo", true))
-            .add(Setting.bool("center", "Mittig", true))
-            .add(Setting.color("color", "Text Color", 0xFFFFFFFF))
-            .add(Setting.num("scale", "Size", 1.0, 0.4, 2.5, 0.05)));
-    // Startposition oben mittig, auf Hoehe des Namens.
-    Module.get("clienttag").x = 0;
-    Module.get("clienttag").y = 52;
-    register(new Module("nametags", "Nametags",
+        register(new Module("nametags", "Nametags",
                 "Customize and enhance player name visibility.",
                 "RENDER", "pencil", false, false, true)
                 .standardAn()

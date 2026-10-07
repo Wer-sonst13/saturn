@@ -19,6 +19,15 @@ public class SaturnMenuScreen extends SaturnScreen {
     private static final int CARD_H = 46;
     private static final int GAP = 6;
 
+/**
+ * Obergrenze fuer die Breite des Rasters.
+ *
+ * Ohne diese Grenze spannt sich das Raster ueber den kompletten Bildschirm.
+ * Breiter als das wirkt es leer, und die Karten werden so breit, dass Name
+ * und Beschreibung auseinandergezogen werden.
+ */
+private static final int MAX_BREITE = 940;
+
     private String category = "ALL";
     private String search = "";
     private boolean searchOpen;
@@ -77,15 +86,22 @@ public class SaturnMenuScreen extends SaturnScreen {
         drawHeader(ctx, "Saturn Client", "v" + version() + "  ·  " + Modules.count() + " Module", true);
         drawTabs(ctx, t);
 
-        int colW = width - 16;
-        int listX = 8;
+        // Nicht ueber den ganzen Bildschirm dehnen.
+        //
+        // Vorher war colW = width - 16, das Raster verteilte sich also ueber
+        // die volle Breite. Auf breiten Fenstern wirkt das dann verloren und
+        // die Karten werden so breit, dass der Text darin verschwindet.
+        int nutzbar = Math.min(MAX_BREITE, width - 16);
+        int colW = nutzbar;
+        int listX = width / 2 - nutzbar / 2;
+        int randRechts = listX + nutzbar;
 
-        ctx.enableScissor(listX, gridTop - 1, width - 8, gridBottom + 1);
+        ctx.enableScissor(listX, gridTop - 1, randRechts, gridBottom + 1);
         scroll = clampScroll(scroll, contentHeight(), gridBottom - gridTop);
         drawGrid(ctx, t, listX, colW);
         ctx.disableScissor();
 
-        Ui.scrollbar(ctx, width - 6, gridTop, gridBottom - gridTop, contentHeight(), gridBottom - gridTop, scroll, t);
+        Ui.scrollbar(ctx, randRechts + 4, gridTop, gridBottom - gridTop, contentHeight(), gridBottom - gridTop, scroll, t);
         drawFooter(ctx, t, colW);
 
         super.render(ctx, mx, my, delta);

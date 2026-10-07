@@ -38,15 +38,33 @@ public class HubScreen extends SaturnScreen {
 
     // ------------------------------------------------------------------ Layout
 
-    /** Obere Kante des mittigen Blocks. */
+    /**
+ * Oberkante des mittigen Blocks.
+ *
+ * Der Block wird von oben nach unten festgestapelt: Logo, Name, Knopf,
+ * Symbolknoepfe. Die Abstaende stehen hier an einer Stelle, damit nichts
+ * ineinander laeuft - vorher stand der Name bei +42 und der Knopf bei +44,
+ * also genau uebereinander.
+ */
+    private static final int LOGO_H = 52;   // Hoehe des Logos
+    private static final int LUECKE_NACH_LOGO = 8;
+    private static final int LUECKE_NACH_NAME = 14;
+    private static final int KNOPF_H = 28;
+    private static final int LUECKE_KNOPF_ZU_SYMBOL = 12;
+
+    /** Oberkante des Logo. */
     private int blockY() {
-        return height / 2 - 46;
+        // Gesamtblock: Logo + Name + Knopf + Symbolreihe, mittig ausgerichtet.
+        int gesamt = LOGO_H + LUECKE_NACH_LOGO + 9 + LUECKE_NACH_NAME
+                + KNOPF_H + LUECKE_KNOPF_ZU_SYMBOL + KNOPF;
+        return Math.max(10, height / 2 - gesamt / 2);
     }
 
     /** Wo der "MOD MENU"-Knopf liegt: {x, y, breite, hoehe}. */
     private int[] modMenu() {
-        int w = Math.min(260, width - 40);
-        return new int[]{width / 2 - w / 2, blockY() + 44, w, 26};
+        int w = Math.min(280, width - 60);
+        int y = blockY() + LOGO_H + LUECKE_NACH_LOGO + 9 + LUECKE_NACH_NAME;
+        return new int[]{width / 2 - w / 2, y, w, KNOPF_H};
     }
 
     /** Position des i-ten Symbolknopfes. */
@@ -54,7 +72,8 @@ public class HubScreen extends SaturnScreen {
         int anzahl = KNOPF_ICONS.length;
         int gesamt = anzahl * KNOPF + (anzahl - 1) * KNOPF_G;
         int startX = width / 2 - gesamt / 2;
-        int y = blockY() + 80;
+        int[] mm = modMenu();
+        int y = mm[1] + KNOPF_H + LUECKE_KNOPF_ZU_SYMBOL;
         return new int[]{startX + i * (KNOPF + KNOPF_G), y, KNOPF, KNOPF};
     }
 
@@ -87,15 +106,17 @@ public class HubScreen extends SaturnScreen {
         //
         // Vorher wurden zwei Pixel-Bitmaps uebereinandergelegt ("ring" und
         // "planet"); das ergab einen grauen Klecks statt einem Logo.
-        int logoH = 34;
+        int logoH = LOGO_H;
         int logoW = logoH;   // quadratisch
         int lx = mitte - logoW / 2;
         ctx.drawTexture(RenderLayer::getGuiTextured, Logo.LOGO, lx, blockY(),
                 0.0f, 0.0f, logoW, logoH, logoW, logoH);
 
-        // Name mittig darunter
+        // Name mittig darunter - mit demselben Abstand wie beim Knopf,
+        // damit er nicht darauf liegt.
         String titel = Ui.up("SATURN CLIENT");
-        Ui.textCentered(ctx, textRenderer, titel, mitte, blockY() + logoH + 8, t.text);
+        Ui.textCentered(ctx, textRenderer, titel, mitte,
+                blockY() + LOGO_H + LUECKE_NACH_LOGO, t.text);
 
         // MOD MENU
         //

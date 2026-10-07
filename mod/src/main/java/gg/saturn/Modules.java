@@ -12,7 +12,7 @@ import java.util.Map;
  */
 public final class Modules {
 
-    public static final String[] THEMES = {"BLUE", "CYAN", "PURPLE", "GREEN", "ORANGE", "RED", "LIGHT", "DARK"};
+    public static final String[] THEMES = {"MONO", "BLUE", "CYAN", "PURPLE", "GREEN", "ORANGE", "RED", "LIGHT", "DARK"};
 
     private Modules() {}
 
@@ -240,7 +240,7 @@ public final class Modules {
         register(new Module("theme", "Theme",
                 "Switch between light and dark color themes.",
                 "MISC", "palette", false, false, true)
-                .add(Setting.choices("name", "Theme", "BLUE", THEMES)));
+                .add(Setting.choices("name", "Theme", "MONO", THEMES)));
 
         register(new Module("guiscale", "GUI Scale",
                 "Enable separate scaling for the inventory and menus.",

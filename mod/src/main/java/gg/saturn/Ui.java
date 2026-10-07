@@ -35,6 +35,9 @@ public final class Ui {
     private static final java.util.Map<String, Theme> THEMES = new java.util.LinkedHashMap<>();
 
     static {
+        // Standard ist Schwarz-Weiss. Der Client selbst ist schlicht
+        // gehalten, bunte Akzentfarben brachen das.
+        THEMES.put("MONO", new Theme(0xFFFFFFFF, 0xE60A0A0A, 0xB4141414, 0xC41E1E1E, 0xFF3C3C3C, 0xFFFFFFFF, 0xFFF4F4F4, 0xFF9E9E9E, 0xFF3ECF8E, 0xFFFF5C5C, 0xFF9E9E9E));
         THEMES.put("BLUE", new Theme(0xFF3D7BFF, 0xC00A0C12, 0xB0141820, 0xC01B2431, 0x552B3646, 0xAA3D7BFF, 0xFFE8EDF5, 0xFF8A94A6, 0xFF3ECF8E, 0xFFFF5C5C, 0xFF6E7C93));
         THEMES.put("CYAN", new Theme(0xFF17C8D6, 0xC0060F12, 0xB0121B20, 0xC0192831, 0x55263440, 0xAA17C8D6, 0xFFE6F7F8, 0xFF7FA0A6, 0xFF3ECF8E, 0xFFFF5C5C, 0xFF5C8E94));
         THEMES.put("PURPLE", new Theme(0xFF8A5CFF, 0xC00D0914, 0xB0151122, 0xC0201A33, 0x55303C56, 0xAA8A5CFF, 0xFFEFEAFD, 0xFF9086B0, 0xFF3ECF8E, 0xFFFF5C5C, 0xFF7B6BA8));
@@ -47,13 +50,13 @@ public final class Ui {
 
     public static Theme theme() {
         Module m = Module.get("theme");
-        String name = m == null ? "BLUE" : m.choice("name", "BLUE");
+        String name = m == null ? "MONO" : m.choice("name", "MONO");
         Theme t = THEMES.get(name.toUpperCase(Locale.ROOT));
-        return t == null ? THEMES.get("BLUE") : t;
+        return t == null ? THEMES.get("MONO") : t;
     }
 
     public static Theme theme(String name) {
-        return THEMES.getOrDefault(name.toUpperCase(Locale.ROOT), THEMES.get("BLUE"));
+        return THEMES.getOrDefault(name.toUpperCase(Locale.ROOT), THEMES.get("MONO"));
     }
 
     // ---------------- Grundzeichnen ----------------

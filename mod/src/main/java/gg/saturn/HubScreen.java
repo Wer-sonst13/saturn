@@ -332,6 +332,16 @@ public class HubScreen extends SaturnScreen {
 
 /** Die Saturn-Grafik aus den Mod-Ressourcen. */
 final class Logo {
-    static final Identifier LOGO = Identifier.of("saturn", "logo");
+    /**
+     * Vollstaendiger Pfad zur Textur.
+     *
+     * Wichtig: "textures/logo.png" muss mitgeschrieben werden. Der
+     * TextureManager reicht den Identifier unveraendert an den
+     * ResourceManager weiter, der daraus "assets/saturn/logo" baut. Die
+     * Datei liegt aber unter "assets/saturn/textures/logo.png". Mit dem
+     * kurzen Pfad lieferte Minecraft dauerhaft den Platzhalter - ein
+     * magenta-schwarzes Schachbrett, das aussah, als wuerde nichts geladen.
+     */
+    static final Identifier LOGO = Identifier.of("saturn", "textures/logo.png");
     private Logo() {}
 }

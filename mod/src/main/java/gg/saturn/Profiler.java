@@ -193,7 +193,11 @@ public final class Profiler {
         sb.append(String.format(java.util.Locale.ROOT, "%nSumme gemessen: %.3f ms%n", summe));
 
         try {
-            Path p = Path.of("saturn-profile.txt").toAbsolutePath();
+            // In den Spielordner schreiben, nicht in das Arbeitsverzeichnis:
+            // da landet die Datei sonst je nach Startmethode an einem
+            // unvorhersehbaren Ort.
+            Path basis = mc == null ? Path.of(".").toAbsolutePath() : mc.runDirectory.toPath();
+            Path p = basis.resolve("saturn-profile.txt");
             Files.writeString(p, sb.toString(), StandardCharsets.UTF_8);
             System.err.println("[Saturn] Profil geschrieben: " + p);
         } catch (IOException ex) {

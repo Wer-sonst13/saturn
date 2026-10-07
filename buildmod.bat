@@ -24,20 +24,36 @@ cd /d "%~dp0"
 rem Gradle laeuft auf Java 25 - das verlangt das aktuelle Fabric-Loom beim
 rem Start. Erzeugt werden aber weiterhin Klassen fuer Java 21, so wie es
 rem Minecraft braucht.
+rem
+rem Wichtig: nichts davon darf fest verdrahtet sein. Auf einem Build-Runner
+rem (GitHub Actions) gibt es den Toolordner F:\LingLing\.toolcache nicht, und
+rem Java 25 liefert der Workflow bereits mit. Deshalb wird JAVA_HOME nur
+rem gesetzt, wenn der lokale Pfad wirklich existiert - sonst bleibt, was da
+rem ist. Das war der Grund, warum der erste Build auf GitHub abbrach.
 if exist "%LOCALAPPDATA%\Programs\Eclipse Adoptium\jdk-25.0.3.9-hotspot\bin\java.exe" (
   set "JAVA_HOME=%LOCALAPPDATA%\Programs\Eclipse Adoptium\jdk-25.0.3.9-hotspot"
-) else (
+) else if exist "%TOOLS%\jdk-21.0.12.1+1\bin\java.exe" (
   set "JAVA_HOME=%TOOLS%\jdk-21.0.12.1+1"
 )
-set "PATH=%JAVA_HOME%\bin;%PATH%"
+if defined JAVA_HOME set "PATH=%JAVA_HOME%\bin;%PATH%"
 
+rem Gradle: erst der lokale Toolordner, sonst das, was im Pfad liegt.
+rem Der Workflow installiert Gradle und legt es in den Pfad - auf dem
+rem Runner ist F:\LingLing\.toolcache also nicht vorhanden.
 set "GRADLE=%TOOLS%\gradle-9.8.0\bin\gradle.bat"
-if not exist "%GRADLE%" (
-  echo Gradle fehlt: %GRADLE%
+if not exist "%GRADLE%" set "GRADLE="
+if not defined GRADLE (
+  for /f "usebackq delims=" %%g in (`where gradle.bat 2^>nul`) do if not defined GRADLE set "GRADLE=%%g"
+)
+if not defined GRADLE (
+  echo Gradle nicht gefunden.
+  echo   erwartet: %TOOLS%\gradle-9.8.0\bin\gradle.bat
+  echo   oder:    gradle.bat im PATH
   echo Nachladen: https://services.gradle.org/distributions
   pause
   exit /b 1
 )
+echo Gradle: %GRADLE%
 
 rem ------------------------------------------------------------- Versionsliste
 rem Die Liste holt sich Gradle aus mod\versions.json - damit gibt es nur eine

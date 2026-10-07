@@ -59,20 +59,20 @@ public class ScoreboardMixin {
 
         // Um die eigene Mitte strecken, nicht um den Bildursprung.
         //
-        // ms.scale((float) () dehnt immer um (0,0), also die linke obere Ecke. Das
+        // Skalieren dehnt immer um (0,0), also die linke obere Ecke. Das
         // Scoreboard sitzt aber am rechten Rand - bei 1,2 rutschte es einfach
         // aus dem Bild und die Groesseneinstellung wirkte wie tot.
         //
         // Dreimal um denselben Punkt herum: hin, strecken, zurueck. Dann
         // bleibt der rechte Rand stehen und das Feld waechst nach links.
-        int pivotX = ((DrawContext) (Object) ctx).getScaledWindowWidth());
+        int pivotX = ctx.getScaledWindowWidth();
         int pivotY = MinecraftClient.getInstance().getWindow().getScaledHeight() / 2;
-        ms.translate((float) (pivotX, pivotY));
-        if (scale != 1.0f) ms.scale((float) (scale, scale));
-        ms.translate((float) (-pivotX, -pivotY));
+        ms.translate(pivotX, pivotY);
+        if (scale != 1.0f) ms.scale(scale, scale);
+        ms.translate(-pivotX, -pivotY);
 
         // Und danach den Wunschversatz des Spielers.
-        ms.translate((float) (dx, dy));
+        ms.translate((float) dx, (float) dy);
     }
 
     @Inject(method = "renderScoreboardSidebar(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/scoreboard/ScoreboardObjective;)V",
@@ -86,7 +86,7 @@ public class ScoreboardMixin {
         // Muss zu HEAD passen, sonst waere die Matrix schief. Fehlt der
         // Gegenpart, faellt das hier auf - ein pop() zu viel waere schlimmer.
         try {
-            ctx.getMatrices().pop();
+            ctx.getMatrices().popMatrix();
         } catch (Throwable ignoriert) {
             // dann eben nicht
         }

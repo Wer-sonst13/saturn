@@ -62,8 +62,8 @@ public class TitleMixin {
         var ms = ctx.getMatrices();
         ms.pushMatrix();
         ms.translate((float) (w / 2.0 + m.num("x", 0)), (float) (h / 2.0 + m.num("y", 0)));
-        ms.scale((float) (sc, sc));
-        ms.translate((float) (-w / 2.0, -h / 2.0));
+        ms.scale(sc, sc);
+        ms.translate(-w / 2.0f, -h / 2.0f);
 
         int y = 10;
         ctx.drawText(tr, title, (w - tr.getWidth(title)) / 2, y, 0xFFFFFFFF | alpha, false);

@@ -2,7 +2,7 @@ package gg.saturn;
 
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.gl.RenderPipelines;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -93,7 +93,7 @@ public final class Ui {
         int a = groesse + r * 2;
         fill(ctx, x - r, y - r, a, a, 0xFF0E0E0E);
         outline(ctx, x - r, y - r, a, a, withAlpha(t.accent, 0.8f));
-        ctx.drawTexture(RenderLayer::getGuiTextured, Logo.LOGO, x, y,
+        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Logo.LOGO, x, y,
                 0.0f, 0.0f, groesse, groesse, groesse, groesse);
     }
 

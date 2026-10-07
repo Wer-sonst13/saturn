@@ -1,5 +1,6 @@
 package gg.saturn;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 
@@ -7,298 +8,350 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Das Saturn-Hauptmenü: Karten-Raster wie bei NoRisk.
- * Klick auf eine Karte schaltet das Modul an/aus, Klick auf "..." öffnet
- * die Einstellungen. Alle Module lassen sich einzeln umschalten.
+ * Das Modul-Menü: ein Fenster in der Mitte, nicht über den ganzen Bildschirm.
+ *
+ * Aufbau: links eine schmale Leiste mit den Bereichen, oben die Kategorien
+ * und die Suche, darunter zwei breite Kartenspalten, unten eine Fußzeile.
  */
 public class SaturnMenuScreen extends SaturnScreen {
 
-    // Mindestbreite einer Karte. Alles darunter wird unlesbar, dann lieber
-    // eine Spalte mit breiteren Karten als drei zu schmale.
-    private static final int CARD_W = 150;
-    private static final int CARD_H = 46;
-    private static final int GAP = 6;
+    // --- Fenster ---
+    private static final int FENSTER_B = 620;
+    private static final int FENSTER_H = 340;
+    private static final int LEISTE_B = 58;     // linke Icon-Leiste
+    private static final int KOPF_H = 34;       // Kategorien + Suche
+    private static final int FUSS_H = 22;       // Fußzeile
+    private static final int RAND = 8;
 
-/**
- * Obergrenze fuer die Breite des Rasters.
- *
- * Ohne diese Grenze spannt sich das Raster ueber den kompletten Bildschirm.
- * Breiter als das wirkt es leer, und die Karten werden so breit, dass Name
- * und Beschreibung auseinandergezogen werden.
- */
-private static final int MAX_BREITE = 620;
+    // --- Karten ---
+    private static final int SPALTEN = 2;
+    private static final int KARTEN_B = 178;
+    private static final int KARTEN_H = 44;
+    private static final int LUECKE = 6;
 
-    private String category = "ALL";
-    private String search = "";
-    private boolean searchOpen;
+    // Bereiche der linken Leiste. Freunde, Emotes, Kosmetik und Norisk+ gibt
+    // es hier bewusst nicht - die gehoeren nicht zu diesem Client.
+    private static final String[] BEREICHE = {"MODS", "PROFIL", "EINSTELLUNGEN"};
+    private static final String[] BEREICH_ICON = {"layers", "user", "grid"};
+    private static final int[] TREFFER = new int[3 * 4];
 
-    private List<String> cats = new ArrayList<>();
-    private List<Module> shown = new ArrayList<>();
-    private int gridTop, gridBottom;
+    private String kategorie = "ALL";
+    private String suche = "";
+    private boolean sucheAktiv;
+    private boolean profilOffen;
+    private boolean settingsOffen;
+
+    private List<Module> gezeigt = new ArrayList<>();
+    private double scroll;
+    private int[] kartenTreffer = new int[0];
+    private final int[] sucheFeld = new int[4];
+    private final int[] profilFeld = new int[4];
+    private int profilAnzahl;
 
     public SaturnMenuScreen(Screen parent) {
-        super("Saturn Client", parent);
+        super("Mods", parent);
     }
+
+    // ------------------------------------------------------------------ Layout
+
+    private int fensterX() { return width / 2 - FENSTER_B / 2; }
+    private int fensterY() { return Math.max(6, height / 2 - FENSTER_H / 2); }
+    private int inhaltX() { return fensterX() + LEISTE_B; }
+    private int inhaltB() { return FENSTER_B - LEISTE_B; }
+    private int rasterOben() { return fensterY() + KOPF_H + 4; }
+    private int rasterUnten() { return fensterY() + FENSTER_H - FUSS_H - 4; }
 
     @Override
     protected void init() {
         super.init();
-        gridTop = 52;
-        gridBottom = height - 30;
-        cats = new ArrayList<>();
-        cats.add("ALL");
-        cats.addAll(Modules.categories());
-        filter();
-    }
-
-    private void filter() {
-        shown = new ArrayList<>();
-        String q = search.toLowerCase();
-        for (Module m : Module.all()) {
-            if (!category.equals("ALL") && !m.category.equals(category)) continue;
-            if (!q.isEmpty() && !(m.name.toLowerCase().contains(q) || m.desc.toLowerCase().contains(q))) continue;
-            shown.add(m);
+        sammeln();
+        for (int i = 0; i < BEREICHE.length; i++) {
+            int y = fensterY() + KOPF_H + 10 + i * 44;
+            TREFFER[i * 4] = fensterX() + 6;
+            TREFFER[i * 4 + 1] = y;
+            TREFFER[i * 4 + 2] = LEISTE_B - 12;
+            TREFFER[i * 4 + 3] = 38;
         }
     }
 
-    private int columns() {
-        int usable = width - 16;
-        return Math.max(1, Math.min(4, usable / (CARD_W + GAP)));
+    // ------------------------------------------------------------------ Auswahl
+
+    private void sammeln() {
+        gezeigt = new ArrayList<>();
+        String such = suche.toLowerCase(java.util.Locale.ROOT).trim();
+        for (Module m : Module.all()) {
+            if (!kategorie.equals("ALL") && !m.category.equalsIgnoreCase(kategorie)) continue;
+            if (!such.isEmpty()
+                    && !m.name.toLowerCase(java.util.Locale.ROOT).contains(such)
+                    && !m.desc.toLowerCase(java.util.Locale.ROOT).contains(such)) continue;
+            gezeigt.add(m);
+        }
     }
 
-    private int rows() {
-        int c = columns();
-        return (int) Math.ceil(shown.size() / (double) c);
+    private int spalten() {
+        int nutzbar = inhaltB() - RAND * 2;
+        return Math.max(1, Math.min(SPALTEN, nutzbar / KARTEN_B));
     }
 
-    private int contentHeight() {
-        return rows() * (CARD_H + GAP);
+    private int kartenB() {
+        int nutzbar = inhaltB() - RAND * 2;
+        int n = spalten();
+        return (nutzbar - LUECKE * (n - 1)) / n;
     }
 
-    // ------------------------------------------------------------------ Malen
+    private int inhaltH() {
+        int zeilen = (gezeigt.size() + spalten() - 1) / spalten();
+        return zeilen * (KARTEN_H + LUECKE);
+    }
+
+    /** Karte an Position {x, y}. */
+    private int[] karte(int index) {
+        int n = spalten();
+        int b = kartenB();
+        int sp = index % n, zeile = index / n;
+        return new int[]{inhaltX() + RAND + sp * (b + LUECKE),
+                rasterOben() + (int) scroll + zeile * (KARTEN_H + LUECKE), b, KARTEN_H};
+    }
+
+    // ------------------------------------------------------------------ Zeichnen
 
     @Override
     public void render(DrawContext ctx, int mx, int my, float delta) {
         cacheMouse(mx, my);
         Ui.Theme t = Ui.theme();
-
         drawBackdrop(ctx);
-        drawHeader(ctx, "Saturn Client", "v" + version() + "  ·  " + Modules.count() + " Module", true);
-        drawTabs(ctx, t);
 
-        // Nicht ueber den ganzen Bildschirm dehnen.
-        //
-        // Vorher war colW = width - 16, das Raster verteilte sich also ueber
-        // die volle Breite. Auf breiten Fenstern wirkt das dann verloren und
-        // die Karten werden so breit, dass der Text darin verschwindet.
-        int nutzbar = Math.min(MAX_BREITE, width - 16);
-        int colW = nutzbar;
-        int listX = width / 2 - nutzbar / 2;
-        int randRechts = listX + nutzbar;
+        int fx = fensterX(), fy = fensterY();
 
-        ctx.enableScissor(listX, gridTop - 1, randRechts, gridBottom + 1);
-        scroll = clampScroll(scroll, contentHeight(), gridBottom - gridTop);
-        drawGrid(ctx, t, listX, colW);
+        // Fensterrahmen
+        Ui.panel(ctx, fx, fy, FENSTER_B, FENSTER_H, t);
+        Ui.outline(ctx, fx, fy, FENSTER_B, FENSTER_H, Ui.withAlpha(t.accent, 0.30f));
+
+        drawLeiste(ctx, t, mx, my);
+        drawKopf(ctx, t, mx, my);
+
+        // Raster
+        int oben = rasterOben(), unten = rasterUnten();
+        scroll = clampScroll(scroll, inhaltH(), unten - oben);
+        ctx.enableScissor(inhaltX(), oben - 1, fx + FENSTER_B - 1, unten + 1);
+        drawRaster(ctx, t, mx, my);
         ctx.disableScissor();
+        Ui.scrollbar(ctx, fx + FENSTER_B - 6, oben, unten - oben,
+                inhaltH(), unten - oben, scroll, t);
 
-        Ui.scrollbar(ctx, randRechts + 4, gridTop, gridBottom - gridTop, contentHeight(), gridBottom - gridTop, scroll, t);
-        drawFooter(ctx, t, colW);
+        drawFuss(ctx, t);
+
+        if (profilOffen) drawProfil(ctx, t, mx, my);
+        if (settingsOffen) drawSettings(ctx, t, mx, my);
 
         super.render(ctx, mx, my, delta);
     }
 
-    private void drawGrid(DrawContext ctx, Ui.Theme t, int listX, int colW) {
-        int cols = columns();
-        int cw = (colW - GAP * (cols - 1)) / cols;
-        int y = gridTop - (int) scroll;
-        int mouseX = this.mouseX, mouseY = this.mouseY;
+    private void drawLeiste(DrawContext ctx, Ui.Theme t, int mx, int my) {
+        int x = fensterX(), y = fensterY();
+        ctx.fill(x, y, x + LEISTE_B, y + FENSTER_H, Ui.withAlpha(t.accent, 0.06f));
+        Ui.outline(ctx, x + LEISTE_B - 1, y, 1, FENSTER_H, Ui.withAlpha(t.accent, 0.20f));
 
-        for (int idx = 0; idx < shown.size(); idx++) {
-            Module m = shown.get(idx);
-            int col = idx % cols;
-            int row = idx / cols;
-            int x = listX + col * (cw + GAP);
-            int yy = y + row * (CARD_H + GAP);
-            if (yy + CARD_H < gridTop - 4 || yy > gridBottom + 4) continue;
+        // Titel oben in der Leiste
+        Icons.draw(ctx, "bolt", x + LEISTE_B / 2 - 4, y + 8, 1, t.accent, "LINE");
 
-            boolean hover = Ui.inside(mouseX, mouseY, x, yy, cw, CARD_H);
-            boolean inList = yy >= gridTop - 4 && yy <= gridBottom + 4;
-            if (!inList) continue;
+        for (int i = 0; i < BEREICHE.length; i++) {
+            int bx = TREFFER[i * 4], by = TREFFER[i * 4 + 1];
+            int bw = TREFFER[i * 4 + 2], bh = TREFFER[i * 4 + 3];
+            boolean hover = Ui.inside(mx, my, bx, by, bw, bh);
+            boolean an = i == 0;
+            if (an) ctx.fill(bx, by, bx + bw, by + bh, Ui.withAlpha(t.accent, 0.18f));
+            else if (hover) ctx.fill(bx, by, bx + bw, by + bh, Ui.withAlpha(t.text, 0.07f));
+            Icons.draw(ctx, BEREICH_ICON[i], bx + 6, by + 6, 2,
+                    an || hover ? t.accent : Ui.withAlpha(t.text, 0.75f), "LINE");
+            Ui.textCentered(ctx, textRenderer, BEREICHE[i], bx + bw / 2, by + 26,
+                    an || hover ? t.text : Ui.withAlpha(t.dim, 0.9f));
+        }
+    }
 
-            Ui.card(ctx, x, yy, cw, CARD_H, t, hover, m.enabled);
+    private void drawKopf(DrawContext ctx, Ui.Theme t, int mx, int my) {
+        int x = inhaltX(), y = fensterY();
+        Ui.outline(ctx, x, y + KOPF_H - 1, inhaltB(), 1, Ui.withAlpha(t.accent, 0.18f));
 
-            // Icon
-            String style = iconStyle();
-            Icons.draw(ctx, m.icon, x + 8, yy + 8, 2, m.enabled ? t.accent : Ui.withAlpha(t.dim, 0.85f), style);
-
-            int tx = x + 8 + Icons.SIZE * 2 + 8;
-            // Rechts bleibt Platz fuer den Schalter, sonst laeuft die
-            // Beschreibung mitten in ihn hinein.
-            int sw = 34;
-            int tw = cw - (tx - x) - 10 - (sw + 8);
-
-            // NEW-Badge
-            if (m.isNew) {
-                Ui.text(ctx, textRenderer, "NEW", x + cw - 26, yy + 5, 0xFFFFD24A);
-                tw -= 26;
+        // Kategorien
+        List<String> cats = new ArrayList<>();
+        cats.add("ALL");
+        cats.addAll(Modules.categories());
+        int cx = x + RAND;
+        for (String c : cats) {
+            String label = Ui.up(c);
+            int bw = textRenderer.getWidth(label) + 14;
+            boolean hover = Ui.inside(mx, my, cx, y + 7, bw, 18);
+            boolean an = c.equals(kategorie);
+            if (an) {
+                ctx.fill(cx, y + 7, cx + bw, y + 25, Ui.withAlpha(t.accent, 0.22f));
+                Ui.outline(ctx, cx, y + 7, bw, 18, Ui.withAlpha(t.accent, 0.7f));
+            } else if (hover) {
+                ctx.fill(cx, y + 7, cx + bw, y + 25, Ui.withAlpha(t.text, 0.07f));
             }
-            if (tw < 24) tw = 24;
+            Ui.text(ctx, textRenderer, label, cx + 7, y + 13, an ? t.text : t.dim);
+            cx += bw + 4;
+        }
 
-            Ui.text(ctx, textRenderer, Ui.up(m.name), tx, yy + 7,
+        // Suche rechts
+        int sw = 120;
+        int sx = x + inhaltB() - sw - RAND;
+        ctx.fill(sx, y + 7, sx + sw, y + 25, Ui.withAlpha(t.text, 0.07f));
+        Ui.outline(ctx, sx, y + 7, sw, 18, sucheAktiv
+                ? Ui.withAlpha(t.accent, 0.8f) : Ui.withAlpha(t.text, 0.18f));
+        String anzeige = suche.isEmpty() ? "SUCHE..." : suche;
+        Ui.text(ctx, textRenderer, anzeige, sx + 6, y + 13,
+                suche.isEmpty() ? Ui.withAlpha(t.dim, 0.8f) : t.text);
+        sucheFeld[0] = sx; sucheFeld[1] = y + 7;
+        sucheFeld[2] = sw; sucheFeld[3] = 18;
+    }
+
+    private void drawRaster(DrawContext ctx, Ui.Theme t, int mx, int my) {
+        kartenTreffer = new int[gezeigt.size() * 4];
+        String stil = iconStil();
+        for (int i = 0; i < gezeigt.size(); i++) {
+            int[] k = karte(i);
+            if (k[1] + KARTEN_H < rasterOben() - 4 || k[1] > rasterUnten() + 4) continue;
+            Module m = gezeigt.get(i);
+            boolean hover = Ui.inside(mx, my, k[0], k[1], k[2], KARTEN_H);
+            Ui.card(ctx, k[0], k[1], k[2], KARTEN_H, t, hover, m.enabled);
+
+            Icons.draw(ctx, m.icon, k[0] + 7, k[1] + 7, 2,
+                    m.enabled ? t.accent : Ui.withAlpha(t.text, 0.7f), stil);
+
+            int tx = k[0] + 7 + Icons.SIZE * 2 + 7;
+            int schalterB = 30;
+            int dreiB = 10;
+            int tw = k[2] - (tx - k[0]) - 10 - schalterB - dreiB;
+
+            Ui.text(ctx, textRenderer, Ui.up(m.name), tx, k[1] + 7,
                     m.enabled ? t.text : Ui.withAlpha(t.dim, 0.95f));
 
-            List<String> lines = Ui.wrap(textRenderer, m.desc, tw, 2);
-            int ly = yy + 18;
-            for (String l : lines) {
-                if (ly > yy + CARD_H - 6) break;
-                Ui.text(ctx, textRenderer, l, tx, ly, Ui.withAlpha(t.dim, 0.85f));
-                ly += 9;
+            for (String zeile : Ui.wrap(textRenderer, m.desc, Math.max(20, tw), 2)) {
+                Ui.text(ctx, textRenderer, zeile, tx, k[1] + 18, Ui.withAlpha(t.dim, 0.85f));
             }
 
-            // Schalter rechts unten
-            int sh = 14;
-            Ui.toggle(ctx, x + cw - sw - 7, yy + CARD_H - sh - 6, sw, sh, m.enabled, t, hover);
+            // Schalter
+            int sw = 26, sh = 13;
+            Ui.toggle(ctx, k[0] + k[2] - sw - 16, k[1] + KARTEN_H - sh - 8, sw, sh,
+                    m.enabled, t, hover);
+            // Drei-Punkte-Knopf
+            int dx = k[0] + k[2] - dreiB - 6, dy = k[1] + KARTEN_H / 2 - 5;
+            ctx.fill(dx, dy, dx + dreiB, dy + 1, Ui.withAlpha(t.text, 0.6f));
+            ctx.fill(dx, dy + 4, dx + dreiB, dy + 5, Ui.withAlpha(t.text, 0.6f));
+            ctx.fill(dx, dy + 8, dx + dreiB, dy + 9, Ui.withAlpha(t.text, 0.6f));
+
+            kartenTreffer[i * 4] = k[0];
+            kartenTreffer[i * 4 + 1] = k[1];
+            kartenTreffer[i * 4 + 2] = k[2];
+            kartenTreffer[i * 4 + 3] = KARTEN_H;
         }
     }
 
-    private void drawTabs(DrawContext ctx, Ui.Theme t) {
-        int x = 8, y = 32;
-        for (String c : cats) {
-            boolean on = c.equals(category);
-            int w = textRenderer.getWidth(Ui.up(c)) + 18;
-            Ui.button(ctx, textRenderer, x, y, w, 16, c, t, hovering(x, y, w, 16), on);
-            x += w + 4;
-        }
-        // Suche
-        String sw = "SUCHE";
-        int bw = textRenderer.getWidth(sw) + 20;
-        int bx = width - bw - 8;
-        if (!searchOpen) {
-            Ui.button(ctx, textRenderer, bx, y, bw, 16, "SUCHE", t, hovering(bx, y, bw, 16), false);
-        } else {
-            Ui.fill(ctx, bx - 6, y, bw + 46, 16, Ui.withAlpha(t.text, 0.07f));
-            Ui.outline(ctx, bx - 6, y, bw + 46, 16, t.accent);
-            Ui.text(ctx, textRenderer, search + "▌", bx, y + 4, t.text);
-        }
-        searchHit[0] = searchOpen ? bx - 6 : bx;
-        searchHit[1] = y;
-        searchHit[2] = searchOpen ? bw + 46 : bw;
-        searchHit[3] = 16;
+    private void drawFuss(DrawContext ctx, Ui.Theme t) {
+        int x = inhaltX(), y = fensterY() + FENSTER_H - FUSS_H;
+        Ui.outline(ctx, x, y, inhaltB(), 1, Ui.withAlpha(t.accent, 0.14f));
+        int an = 0;
+        for (Module m : Module.all()) if (m.enabled) an++;
+        Ui.text(ctx, textRenderer, an + " VON " + Modules.count() + " MODULEN AKTIV", x + RAND, y + 7, t.dim);
+        String profil = ConfigStore.activeProfile();
+        String rechts = "PROFIL: " + (profil == null || profil.isEmpty() ? "STANDARD" : Ui.up(profil));
+        Ui.text(ctx, textRenderer, rechts, x + inhaltB() - RAND - Ui.width(textRenderer, rechts), y + 7, t.dim);
     }
 
-    private final int[] searchHit = new int[4];
-
-    /**
-     * Fusszeile. Die drei Angaben werden von links nach rechts aneinander
-     * gereiht statt an festen Stellen hingesetzt - bei kleiner Fensterbreite
-     * (Minecraft skaliert je nach Aufloesung bis Faktor 4) laufen sie sonst
-     * uebereinander.
-     */
-    private void drawFooter(DrawContext ctx, Ui.Theme t, int colW) {
-        int y = height - 20;
-        Ui.fill(ctx, 0, y, width, 20, 0xE60B0D12);
-        Ui.outline(ctx, 0, y, width, 1, Ui.withAlpha(t.accent, 0.35f));
-
-        int on = 0;
-        for (Module m : Module.all()) if (m.enabled) on++;
-
-        int ty = y + 6;
-        int x = 8;
-        int limit = width - 8;
-
-        x = drawFooterItem(ctx, x, ty, limit, on + " VON " + Module.all().size() + " MODULEN AKTIV", t.dim);
-        x = drawFooterItem(ctx, x, ty, limit, "PROFIL: " + Ui.up(ConfigStore.activeProfile()), t.dim);
-
-        // Die Tastenkuerzel erst zeichnen, wenn sie noch frei Platz haben
-        String h = "F6 HUD  ·  F7 CHAT  ·  R-SHIFT MENÜ";
-        int hw = textRenderer.getWidth(h);
-        if (hw <= limit - x - 6) {
-            Ui.text(ctx, textRenderer, h, limit - hw, ty, Ui.withAlpha(t.dim, 0.8f));
+    private void drawProfil(DrawContext ctx, Ui.Theme t, int mx, int my) {
+        List<String> namen = ConfigStore.profileNames();
+        int w = 160, h = Math.max(30, namen.size() * 16 + 10);
+        int x = fensterX() + 6, y = TREFFER[4] + TREFFER[5] + 4;
+        ctx.fill(x, y, x + w, y + h, 0xE60B0D12);
+        Ui.outline(ctx, x, y, w, h, Ui.withAlpha(t.accent, 0.5f));
+        for (int i = 0; i < namen.size(); i++) {
+            String n = namen.get(i);
+            boolean hover = Ui.inside(mx, my, x + 3, y + 5 + i * 16, w - 6, 14);
+            boolean aktiv = n.equals(ConfigStore.activeProfile());
+            if (hover || aktiv) ctx.fill(x + 3, y + 5 + i * 16, x + w - 3, y + 19 + i * 16,
+                    Ui.withAlpha(t.accent, aktiv ? 0.25f : 0.12f));
+            Ui.text(ctx, textRenderer, (aktiv ? "▸ " : "   ") + Ui.up(n), x + 6, y + 8 + i * 16,
+                    aktiv ? t.accent : t.text);
         }
+        profilFeld[0] = x; profilFeld[1] = y; profilFeld[2] = w; profilFeld[3] = h;
+        profilAnzahl = namen.size();
     }
 
-    /**
-     * Zeichnet einen Fusszeilentext ab {@code x} und gibt die x-Position danach
-     * zurueck. Passt der Text nicht mehr bis {@code limit}, wird er
-     * weggelassen und x bleibt stehen - so kann nichts ueberlappen.
-     */
-    private int drawFooterItem(DrawContext ctx, int x, int ty, int limit, String s, int color) {
-        int w = textRenderer.getWidth(s);
-        if (x + w > limit) return x;
-        Ui.text(ctx, textRenderer, s, x, ty, color);
-        return x + w + 10;
+    private void drawSettings(DrawContext ctx, Ui.Theme t, int mx, int my) {
+        // Kein eigener Einstellungs-Bildschirm vorhanden; deshalb die
+        // vorhandene generische Seite fuer das Theme-Modul nehmen.
     }
 
-    private static String iconStyle() {
+    private String iconStil() {
         Module m = Module.get("icon");
         return m == null ? "LINE" : m.choice("style", "LINE");
     }
 
-    private static String version() {
-        String v = SaturnMenuScreen.class.getPackage().getImplementationVersion();
-        return v == null ? "1.0.0" : v;
-    }
-
-    // ------------------------------------------------------------------ Klicks
+    // ------------------------------------------------------------------ Maus
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
         if (super.mouseClicked(mx, my, button)) return true;
+        if (profilOffen) {
+            List<String> namen = ConfigStore.profileNames();
+            int x = profilFeld[0], y = profilFeld[1], w = profilFeld[2];
+            for (int i = 0; i < namen.size(); i++) {
+                if (Ui.inside(mx, my, x + 3, y + 5 + i * 16, w - 6, 14)) {
+                    ConfigStore.activateProfile(namen.get(i));
+                    ConfigStore.saveActiveProfile();
+                    profilOffen = false;
+                    return true;
+                }
+            }
+            profilOffen = false;
+            return true;
+        }
 
-        if (backClicked(mx, my)) {
-            goBack();
+        // Linke Leiste
+        for (int i = 0; i < BEREICHE.length; i++) {
+            if (!Ui.inside(mx, my, TREFFER[i * 4], TREFFER[i * 4 + 1], TREFFER[i * 4 + 2], TREFFER[i * 4 + 3])) continue;
+            switch (i) {
+                case 1 -> profilOffen = true;
+                case 2 -> client.setScreen(new ModuleSettingsScreen(Module.get("theme"), this));
+                default -> { }
+            }
             return true;
         }
 
         // Suche
-        if (Ui.inside(mx, my, searchHit[0], searchHit[1], searchHit[2], searchHit[3])) {
-            searchOpen = !searchOpen;
-            if (!searchOpen) {
-                search = "";
-                filter();
-            }
+        if (Ui.inside(mx, my, sucheFeld[0], sucheFeld[1], sucheFeld[2], sucheFeld[3])) {
+            sucheAktiv = !sucheAktiv;
             return true;
         }
-        if (searchOpen) {
-            // Klick in die Suchzeile fängt den Fokus
-            if (my < 52) return true;
-        }
-
-        // Tabs
-        int x = 8;
-        for (String c : cats) {
-            int w = textRenderer.getWidth(Ui.up(c)) + 18;
-            if (Ui.inside(mx, my, x, 32, w, 16)) {
-                category = c;
-                scroll = 0;
-                filter();
-                return true;
-            }
-            x += w + 4;
-        }
+        sucheAktiv = false;
 
         // Karten
-        int cols = columns();
-        int cw = (width - 16 - GAP * (cols - 1)) / cols;
-        int y = gridTop - (int) scroll;
-        for (int i = 0; i < shown.size(); i++) {
-            Module m = shown.get(i);
-            int col = i % cols;
-            int row = i / cols;
-            int cx = 8 + col * (cw + GAP);
-            int cy = y + row * (CARD_H + GAP);
-            if (!Ui.inside(mx, my, cx, cy, cw, CARD_H)) continue;
-
-            // Schalter oben rechts öffnet die Einstellungen
-            int sw = 34, sh = 14;
-            int sx = cx + cw - sw - 7, sy = cy + CARD_H - sh - 7;
-            boolean onSettings = Ui.inside(mx, my, sx, sy, sw, sh);
-            if (onSettings && m.hasMenu) {
+        for (int i = 0; i < gezeigt.size(); i++) {
+            int[] k = kartenTreffer.length > i * 4 + 3
+                    ? new int[]{kartenTreffer[i * 4], kartenTreffer[i * 4 + 1],
+                             kartenTreffer[i * 4 + 2], kartenTreffer[i * 4 + 3]}
+                    : null;
+            if (k == null) continue;
+            if (!Ui.inside(mx, my, k[0], k[1], k[2], k[3])) continue;
+            Module m = gezeigt.get(i);
+            int schalterX = k[0] + k[2] - 26 - 16;
+            if (Ui.inside(mx, my, schalterX, k[1] + KARTEN_H - 13 - 8, 26, 13)) {
+                m.enabled = !m.enabled;
+                ConfigStore.save();
+                return true;
+            }
+            int dx = k[0] + k[2] - 10 - 6;
+            if (Ui.inside(mx, my, dx - 4, k[1] + KARTEN_H / 2 - 6, 18, 12)) {
                 client.setScreen(new ModuleSettingsScreen(m, this));
                 return true;
             }
-            m.enabled = !m.enabled;
-            ConfigStore.save();
+            // Klick auf die Karte: Bildschirm, falls das Modul einen hat
+            if (m.hasMenu && kartenTreffer != null) {
+                Module mm = Module.get(m.id);
+                if (mm != null && mm.hasMenu) client.setScreen(new ModuleSettingsScreen(mm, this));
+                return true;
+            }
             return true;
         }
         return true;
@@ -306,22 +359,32 @@ private static final int MAX_BREITE = 620;
 
     @Override
     public boolean mouseScrolled(double mx, double my, double hAmount, double vAmount) {
-        if (searchOpen) return true;
-        scroll = applyScroll(scroll, contentHeight(), gridBottom - gridTop, vAmount);
+        if (!profilOffen && Ui.inside(mx, my, inhaltX(), rasterOben(), inhaltB(),
+                rasterUnten() - rasterOben())) {
+            scroll = applyScroll(scroll, inhaltH(), rasterUnten() - rasterOben(), vAmount);
+        }
+        return true;
+    }
+
+    @Override
+    public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
+        if (!profilOffen && Ui.inside(mx, my, inhaltX(), rasterOben(), inhaltB(),
+                rasterUnten() - rasterOben())) {
+            scroll = clampScroll(scroll - dy, inhaltH(), rasterUnten() - rasterOben());
+        }
         return true;
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (searchOpen) {
-            if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER || keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
-                searchOpen = false;
-                filter();
+        if (sucheAktiv) {
+            if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE) {
+                if (!suche.isEmpty()) suche = suche.substring(0, suche.length() - 1);
+                sammeln();
                 return true;
             }
-            if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE) {
-                if (!search.isEmpty()) search = search.substring(0, search.length() - 1);
-                filter();
+            if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER || keyCode == 257) {
+                sucheAktiv = false;
                 return true;
             }
         }
@@ -329,19 +392,8 @@ private static final int MAX_BREITE = 620;
     }
 
     @Override
-    public boolean charTyped(char chr, int modifiers) {
-        if (searchOpen) {
-            if (chr >= 32 && chr < 127) {
-                search = search + chr;
-                filter();
-                return true;
-            }
-        }
-        return super.charTyped(chr, modifiers);
-    }
-
-    @Override
     public void close() {
-        goBack();
+        ConfigStore.save();
+        client.setScreen(parent);
     }
 }

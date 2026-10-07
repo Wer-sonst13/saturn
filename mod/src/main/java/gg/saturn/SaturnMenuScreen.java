@@ -113,7 +113,7 @@ public class SaturnMenuScreen extends SaturnScreen {
         int b = kartenB();
         int sp = index % n, zeile = index / n;
         return new int[]{inhaltX() + RAND + sp * (b + LUECKE),
-                rasterOben() + (int) scroll + zeile * (KARTEN_H + LUECKE), b, KARTEN_H};
+                rasterOben() - (int) scroll + zeile * (KARTEN_H + LUECKE), b, KARTEN_H};
     }
 
     // ------------------------------------------------------------------ Zeichnen

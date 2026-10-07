@@ -3,7 +3,7 @@ package gg.saturn;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.util.math.MatrixStack;
+import org.joml.Matrix3x2fStack;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardEntry;
 import net.minecraft.scoreboard.ScoreboardObjective;
@@ -130,11 +130,11 @@ public final class ScoreboardRenderer {
         int left = centerX - w / 2;
         int top = centerY - h / 2;
 
-        MatrixStack ms = ctx.getMatrices();
-        ms.push();
+        Matrix3x2fStack ms = ctx.getMatrices();
+        ms.pushMatrix();
         try {
-            ms.translate(left, top, 0);
-            ms.scale(scale, scale, 1f);
+            ms.translate(left, top);
+            ms.scale(scale, scale);
 
             int bgColor = switch (bgKind) {
                 case "TRANSPARENT" -> 0x00000000;
@@ -172,7 +172,7 @@ public final class ScoreboardRenderer {
         } finally {
             // pop() gehoert in ein finally: sonst bliebe die Matrix
             // verschoben, wenn mitten im Zeichnen etwas flog.
-            ms.pop();
+            ms.popMatrix();
         }
     }
 

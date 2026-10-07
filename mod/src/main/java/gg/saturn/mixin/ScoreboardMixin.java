@@ -4,7 +4,7 @@ import gg.saturn.Module;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
-import net.minecraft.client.util.math.MatrixStack;
+import org.joml.Matrix3x2fStack;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -54,25 +54,25 @@ public class ScoreboardMixin {
         double dx = mod.x;
         double dy = mod.y;
 
-        MatrixStack ms = ctx.getMatrices();
-        ms.push();
+        Matrix3x2fStack ms = ctx.getMatrices();
+        ms.pushMatrix();
 
         // Um die eigene Mitte strecken, nicht um den Bildursprung.
         //
-        // ms.scale() dehnt immer um (0,0), also die linke obere Ecke. Das
+        // ms.scale((float) () dehnt immer um (0,0), also die linke obere Ecke. Das
         // Scoreboard sitzt aber am rechten Rand - bei 1,2 rutschte es einfach
         // aus dem Bild und die Groesseneinstellung wirkte wie tot.
         //
         // Dreimal um denselben Punkt herum: hin, strecken, zurueck. Dann
         // bleibt der rechte Rand stehen und das Feld waechst nach links.
-        int pivotX = ((DrawContext) (Object) ctx).getScaledWindowWidth();
+        int pivotX = ((DrawContext) (Object) ctx).getScaledWindowWidth());
         int pivotY = MinecraftClient.getInstance().getWindow().getScaledHeight() / 2;
-        ms.translate(pivotX, pivotY, 0);
-        if (scale != 1.0f) ms.scale(scale, scale, 1f);
-        ms.translate(-pivotX, -pivotY, 0);
+        ms.translate((float) (pivotX, pivotY));
+        if (scale != 1.0f) ms.scale((float) (scale, scale));
+        ms.translate((float) (-pivotX, -pivotY));
 
         // Und danach den Wunschversatz des Spielers.
-        ms.translate(dx, dy, 0);
+        ms.translate((float) (dx, dy));
     }
 
     @Inject(method = "renderScoreboardSidebar(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/scoreboard/ScoreboardObjective;)V",

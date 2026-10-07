@@ -411,13 +411,18 @@ public final class HudRenderer {
         if (m == null) return new int[]{0, 0, 0, 0};
         if (id.equals("scoreboard")) {
             MinecraftClient c = mc == null ? MinecraftClient.getInstance() : mc;
-            float sc = (float) m.num("scale", 1.0);
-            int w = Math.round(160 * sc);
-            int h = Math.round(70 * sc);
-            // Scoreboard sitzt mittig, Versaetze von der Mitte - wie im Renderer.
-            int cx = c.getWindow().getScaledWidth() / 2 + (int) m.x;
-            int cy = c.getWindow().getScaledHeight() / 2 + (int) m.y;
-            return new int[]{cx - w / 2, cy - h / 2, w, h};
+            // Jetzt zeichnet Vanilla selbst, also liegt das Feld am rechten
+            // Rand und ist mittig. Groesse ist eine brauchbare Schaetzung -
+            // genau gemessen werden kann sie hier nicht, weil der Text
+            // serverabhaengig ist. Fuer den Greifkasten reicht das.
+            float sc = (float) Math.max(0.3, m.num("scale", 1.0));
+            int breite = mc.getWindow().getScaledWidth();
+            int hoehe = mc.getWindow().getScaledHeight();
+            int w = Math.round(180 * sc);
+            int h = Math.round(100 * sc);
+            int links = breite - w + (int) m.x;
+            int oben = hoehe / 2 - h / 2 + (int) m.y;
+            return new int[]{links, oben, w, h};
         }
         List<String> lines = lines(m, mc);
         if (lines.isEmpty()) {

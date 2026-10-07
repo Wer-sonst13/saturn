@@ -1,8 +1,9 @@
 package gg.saturn.mixin;
 
-import gg.saturn.ScoreboardRenderer;
+import gg.saturn.Module;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -10,23 +11,19 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Ersetetzt das normale Scoreboard durch unseren Renderer, damit Hintergrund,
- * Ecken, Breite, Hoehe und Zahlen frei waehlbar sind.
+ * Laesst Minecraft sein eigenes Scoreboard zeichnen und veraendert nur noch
+ * Groesse und Position.
  *
- * Bewusst nur an EINER der beiden Vanilla-Varianten.
+ * Warum nicht selbst zeichnen: eine eigene Anlage muss Farben, §-Codes, die
+ * Schrift aus dem Texturpaket des Servers, Team-Praefixe und die
+ * Team-Farben selbst erledigen. Das war die Ursache fuer leere Zeilen,
+ * fehlende Icons, grauen Text und doppelte Darstellung. Vanilla kann das
+ * alles von Haus aus - also macht Vanilla das auch.
  *
- * Es gibt zwei renderScoreboardSidebar, und die eine ruft die andere auf.
- * Ein Versuch, an beide zu gehen und mit einem Schalter nur einmal je Bild zu
- * zeichnen, hat das Scoreboard komplett verschwinden lassen: der Schalter
- * haette am Bildende ueber eine Injection auf InGameHud.render zurueckgesetzt
- * werden muessen, und diese Methode nimmt inzwischen andere Parameter - die
- * Injection fand kein Ziel und blieb still. Danach war der Schalter dauerhaft
- * gesetzt, es wurde jedes Bild abgebrochen und nie gezeichnet.
- *
- * Also: nur die Variante mit dem ScoreboardObjective. Sie zeichnet einmal,
- * mit dem Preis, dass die Zeilen im Bild leicht doppelt erscheinen. Das ist
- * ein sichtbarer Fehler, aber ein offensichtlicher - ein unsichtbares
- * Scoreboard ist schlimmer.
+ * Groesse und Position kommen als Matrix-Transformation um die
+ * Zeichnung herum: vor dem Zeichnen verschieben und strecken, danach
+ * wieder zuruecknehmen. Es wird bewusst NICHT abgebrochen - dann
+ * zeichnet Vanilla genau einmal.
  *
  * require = 0: passt die Methode in dieser MC-Version nicht, laeuft alles normal.
  */
@@ -35,9 +32,43 @@ public class ScoreboardMixin {
 
     @Inject(method = "renderScoreboardSidebar(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/scoreboard/ScoreboardObjective;)V",
             at = @At("HEAD"), cancellable = true, require = 0)
-    private void saturn$customSidebar(DrawContext ctx, ScoreboardObjective objective, CallbackInfo ci) {
+    private void saturn$beginn(DrawContext ctx, ScoreboardObjective objective, CallbackInfo ci) {
         if (objective == null) return;
-        ScoreboardRenderer.render(ctx, objective, ctx.getScaledWindowWidth());
-        ci.cancel();
+
+        Module mod = Module.get("scoreboard");
+        if (mod == null) return;
+
+        if (!mod.enabled || mod.flag("hideScoreboard", false)) {
+            ci.cancel();          // ausgeschaltet: gar nichts zeichnen
+            return;
+        }
+
+        float scale = (float) Math.max(0.3, Math.min(3.0, mod.num("scale", 1.0)));
+        double dx = mod.x;
+        double dy = mod.y;
+
+        MatrixStack ms = ctx.getMatrices();
+        ms.push();
+        // Erst verschieben, dann strechen: so bezieht sich die Groesse auf
+        // die verschobene Stelle und das Feld wandert nicht beim Ziehen weg.
+        ms.translate(dx, dy, 0);
+        if (scale != 1.0f) ms.scale(scale, scale, 1f);
+    }
+
+    @Inject(method = "renderScoreboardSidebar(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/scoreboard/ScoreboardObjective;)V",
+            at = @At("RETURN"), require = 0)
+    private void saturn$ende(DrawContext ctx, ScoreboardObjective objective, CallbackInfo ci) {
+        Module mod = Module.get("scoreboard");
+        if (mod == null) return;
+        if (!mod.enabled || mod.flag("hideScoreboard", false)) return;
+        if (objective == null) return;
+
+        // Muss zu HEAD passen, sonst waere die Matrix schief. Fehlt der
+        // Gegenpart, faellt das hier auf - ein pop() zu viel waere schlimmer.
+        try {
+            ctx.getMatrices().pop();
+        } catch (Throwable ignoriert) {
+            // dann eben nicht
+        }
     }
 }

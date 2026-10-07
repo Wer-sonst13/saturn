@@ -16,8 +16,7 @@
     "ChatHudMixin",
     "NametagMixin",
     "FovMixin",
-    "PauseMenuMixin",
-                "ProfilerKeyMixin"
+    "PauseMenuMixin"
   ],
   "injectors": { "defaultRequire": 0 }
 }

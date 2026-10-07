@@ -3,6 +3,7 @@
   "key.saturn.editor": "HUD-Editor öffnen",
   "key.saturn.chatutils": "Chat Utils öffnen",
   "key.saturn.hudtoggle": "Vanilla-HUD ein-/ausblenden",
-  "key.saturn.profiler": "Profiler ein-/ausblenden",
+  "key.saturn.profiler": "Profiler ein-/ausblenden (F9)",
+  "key.saturn.profilewrite": "Profil speichern (S)",
   "category.saturn": "Saturn"
 }

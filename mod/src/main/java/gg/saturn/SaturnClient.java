@@ -23,6 +23,7 @@ public class SaturnClient {
     public static KeyBinding chatUtilsKey;
     public static KeyBinding hudToggleKey;
     public static KeyBinding profilerKey;
+    public static KeyBinding profilSchreibenKey;
 
     // für das Keystrokes-Modul
     public static KeyBinding keyForward, keyLeft, keyBack, keyRight, keyJump;
@@ -56,6 +57,10 @@ public class SaturnClient {
                 "key.saturn.hudtoggle", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F8, "category.saturn"));
         profilerKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.saturn.profiler", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F9, "category.saturn"));
+        // "S" als echter Keybind statt ueber einen Mixin: ein Mixin kann
+        // bei defaultRequire = 0 stillschweigend ausfallen, ein Keybind nicht.
+        profilSchreibenKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.saturn.profilewrite", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_S, "category.saturn"));
 
         // `MinecraftClient.options` ist an dieser Stelle noch null: Fabric ruft die
         // Client-Entrypoints aus dem Konstruktor von MinecraftClient heraus auf
@@ -86,7 +91,10 @@ public class SaturnClient {
             while (editorKey.wasPressed()) {
                 // nichts tun: der Hub verarbeitet die Taste selbst
             }
-            while (profilerKey.wasPressed()) {
+            while (profilSchreibenKey.wasPressed()) {
+            if (Profiler.sichtbar()) Profiler.anfordern();
+        }
+        while (profilerKey.wasPressed()) {
             Profiler.toggle();
         }
         while (chatUtilsKey.wasPressed()) {

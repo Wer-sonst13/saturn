@@ -69,7 +69,7 @@ public final class Profiler {
 
     /** Einmal pro Bild aufrufen, ganz am Ende des HUD-Zeichnens. */
     public static void frameEnde(MinecraftClient mc) {
-        if (an && !misst && !speichern) return;
+        if (!an && !speichern) return;
         misst = true;
         if (ersterFrame == 0) ersterFrame = System.nanoTime();
 
@@ -78,16 +78,19 @@ public final class Profiler {
             fpsSumme += 1.0 / Math.max(1e-6, (mc.getCurrentFps() == 0 ? 60 : mc.getCurrentFps()));
             fpsProben++;
         }
-        if (frames < MESSE && !speichern) return;
 
-        if (speichern) {
+        // Das Schreiben nicht auf volle Messfenster warten lassen: wer S
+        // drueckt, will jetzt die Zahlen sehen und nicht nach einer Minute.
+        if (speichern && frames >= 20) {
             schreibe(mc);
             speichern = false;
-            misst = false;
+            if (!an) misst = false;
             frames = 0;
             zuruecksetzen();
             return;
         }
+        if (!an || frames < MESSE) return;
+
         // Weiter messen, damit man auch beim Zusehen ein Gefuehl bekommt.
         if (frames >= MESSE * 20) {
             frames = 0;

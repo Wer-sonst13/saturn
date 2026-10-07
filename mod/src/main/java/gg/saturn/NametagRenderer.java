@@ -1,5 +1,6 @@
 package gg.saturn;
 
+import com.mojang.authlib.GameProfile;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -94,13 +95,39 @@ public final class NametagRenderer {
         }
     }
 
+    // Die Reflection wird einmal aufgeloest statt pro Spieler und pro Bild.
+//
+// Vorher stand getDeclaredMethod() + setAccessible() + invoke() in der
+// Schleife, also bei 20 Spielern 20-mal in jedem einzelnen Bild. Die
+// Methodensuche ist der teure Teil davon, invoke() ist nochmal deutlich
+// langsamer als ein direkter Aufruf.
+private static final java.lang.reflect.Method GET_ENTRY = lePlayerEntry();
+    private static final java.lang.reflect.Method GET_PROFILE_NAME =
+            ermittle(GameProfile.class, "getName");
+
+    private static java.lang.reflect.Method lePlayerEntry() {
+        try {
+            var m = AbstractClientPlayerEntity.class.getDeclaredMethod("getPlayerListEntry");
+            m.setAccessible(true);
+            return m;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private static java.lang.reflect.Method ermittle(Class<?> c, String name) {
+        try {
+            return c.getMethod(name);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     private static String displayName(Entity e) {
-        if (e instanceof AbstractClientPlayerEntity acpe) {
-            // getPlayerListEntry() ist protected -> über Reflection, hält auch Änderungen aus
+        if (e instanceof AbstractClientPlayerEntity acpe && GET_ENTRY != null) {
+            // getPlayerListEntry() ist protected -> ueber Reflection, haelt auch Aenderungen aus
             try {
-                var m = AbstractClientPlayerEntity.class.getDeclaredMethod("getPlayerListEntry");
-                m.setAccessible(true);
-                Object ple = m.invoke(acpe);
+                Object ple = GET_ENTRY.invoke(acpe);
                 if (ple instanceof PlayerListEntry entry) {
                     String name = nameOf(entry);
                     Team team = entry.getScoreboardTeam();
@@ -115,13 +142,15 @@ public final class NametagRenderer {
 
     /** Der Name aus dem Profil. */
     private static String nameOf(PlayerListEntry ple) {
-        try {
-            Object profile = ple.getProfile();
-            if (profile == null) return "?";
-            var m = profile.getClass().getMethod("getName");
-            Object n = m.invoke(profile);
-            if (n != null) return n.toString();
-        } catch (Throwable ignored) {
+        // Auch hier war die Suche pro Aufruf. GET_PROFILE_NAME ist einmal gelöst.
+        if (GET_PROFILE_NAME != null) {
+            try {
+                Object profile = ple.getProfile();
+                if (profile == null) return "?";
+                Object n = GET_PROFILE_NAME.invoke(profile);
+                if (n != null) return n.toString();
+            } catch (Throwable ignored) {
+            }
         }
         return "?";
     }

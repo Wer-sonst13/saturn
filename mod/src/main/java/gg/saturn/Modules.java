@@ -197,18 +197,16 @@ public final class Modules {
                 "Shows the address of the server you are playing on.",
                 "HUD", "globe", true, false, false));
 
+        // Nur noch das, was wirklich wirkt.
+        //
+        // Frueher standen hier Hintergrund, Ecken, Breite, Hoehe und Zahlen.
+        // Seit das Scoreboard wieder von Minecraft selbst gezeichnet wird,
+        // gaeben die nichts mehr her - sie zu behalten war irrefuehrend, weil
+        // sich beim Drehen nichts bewegt hat.
         register(new Module("scoreboard", "Scoreboard",
-                "Customize and enhance the in-game scoreboard.",
+                "Groesse und Position des Spiel-Scoreboards.",
                 "HUD", "board", true, false, true)
-                .add(Setting.num("scale", "HUD Scale", 1.0, 0.3, 2.5, 0.05))
-                .add(Setting.choice("background", "Background", "VANILLA", "VANILLA", "TRANSPARENT", "BLUR", "CUSTOM"))
-                .add(Setting.color("bgColor", "Background Color", 0xB0000000))
-                .add(Setting.bool("corners", "Corners", false))
-                .add(Setting.integer("cornerSize", "Corner Size", 4, 0, 16, 1))
-                .add(Setting.bool("dynamicPadding", "Dynamic Padding", true))
-                .add(Setting.integer("width", "Width", 0, 0, 500, 1))
-                .add(Setting.integer("height", "Height", 0, 0, 500, 1))
-                .add(Setting.bool("showNumbers", "Show Numbers", false))
+                .add(Setting.num("scale", "Groesse", 1.0, 0.3, 3.0, 0.05))
                 .add(Setting.bool("fontShadow", "Font Shadow", true))
                 .add(Setting.bool("hideScoreboard", "Hide Scoreboard", false)));
 

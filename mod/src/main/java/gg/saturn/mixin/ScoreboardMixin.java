@@ -1,6 +1,7 @@
 package gg.saturn.mixin;
 
 import gg.saturn.Module;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.client.util.math.MatrixStack;
@@ -49,10 +50,23 @@ public class ScoreboardMixin {
 
         MatrixStack ms = ctx.getMatrices();
         ms.push();
-        // Erst verschieben, dann strechen: so bezieht sich die Groesse auf
-        // die verschobene Stelle und das Feld wandert nicht beim Ziehen weg.
-        ms.translate(dx, dy, 0);
+
+        // Um die eigene Mitte strecken, nicht um den Bildursprung.
+        //
+        // ms.scale() dehnt immer um (0,0), also die linke obere Ecke. Das
+        // Scoreboard sitzt aber am rechten Rand - bei 1,2 rutschte es einfach
+        // aus dem Bild und die Groesseneinstellung wirkte wie tot.
+        //
+        // Dreimal um denselben Punkt herum: hin, strecken, zurueck. Dann
+        // bleibt der rechte Rand stehen und das Feld waechst nach links.
+        int pivotX = ((DrawContext) (Object) ctx).getScaledWindowWidth();
+        int pivotY = MinecraftClient.getInstance().getWindow().getScaledHeight() / 2;
+        ms.translate(pivotX, pivotY, 0);
         if (scale != 1.0f) ms.scale(scale, scale, 1f);
+        ms.translate(-pivotX, -pivotY, 0);
+
+        // Und danach den Wunschversatz des Spielers.
+        ms.translate(dx, dy, 0);
     }
 
     @Inject(method = "renderScoreboardSidebar(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/scoreboard/ScoreboardObjective;)V",

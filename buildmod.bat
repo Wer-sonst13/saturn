@@ -37,17 +37,24 @@ if exist "%LOCALAPPDATA%\Programs\Eclipse Adoptium\jdk-25.0.3.9-hotspot\bin\java
 )
 if defined JAVA_HOME set "PATH=%JAVA_HOME%\bin;%PATH%"
 
-rem Gradle: erst der lokale Toolordner, sonst das, was im Pfad liegt.
-rem Der Workflow installiert Gradle und legt es in den Pfad - auf dem
-rem Runner ist F:\LingLing\.toolcache also nicht vorhanden.
-set "GRADLE=%TOOLS%\gradle-9.8.0\bin\gradle.bat"
+rem Gradle: der Wrapper ist die verlaesliche Quelle. Er laedt genau die in
+rem gradle\wrapper\gradle-wrapper.properties genannte Fassung selbst und
+rem funktioniert damit ueberall - lokal wie auf dem Build-Runner. Ohne ihn
+rem haengt der Build an einem Gradle, das irgendwo im Pfad liegen muss, und
+rem genau daran ist der erste Lauf auf GitHub gescheitert.
+set "WRAPPER=%~dp0mod\gradlew.bat"
+set "GRADLE=%WRAPPER%"
+if not exist "%GRADLE%" (
+  set "GRADLE=%TOOLS%\gradle-9.8.0\bin\gradle.bat"
+)
 if not exist "%GRADLE%" set "GRADLE="
 if not defined GRADLE (
   for /f "usebackq delims=" %%g in (`where gradle.bat 2^>nul`) do if not defined GRADLE set "GRADLE=%%g"
 )
 if not defined GRADLE (
   echo Gradle nicht gefunden.
-  echo   erwartet: %TOOLS%\gradle-9.8.0\bin\gradle.bat
+  echo   erwartet: mod\gradlew.bat
+  echo   oder:    %TOOLS%\gradle-9.8.0\bin\gradle.bat
   echo   oder:    gradle.bat im PATH
   echo Nachladen: https://services.gradle.org/distributions
   pause

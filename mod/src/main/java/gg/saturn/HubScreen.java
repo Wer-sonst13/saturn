@@ -193,7 +193,12 @@ public class HubScreen extends SaturnScreen {
     private void knopfGedrueckt(int i) {
         switch (i) {
             case 0 -> setEditor(true);
-            case 1 -> client.setScreen(new ScoreboardScreen(this));
+                        // Kein eigener Scoreboard-Bildschirm mehr. Der fragte elf
+            // Einstellungen ab, von denen die meisten nicht mehr existieren -
+            // seit Vanilla zeichnet, sind es nur noch Groesse und Position.
+            // Die generische Einstellungsseite zeigt automatisch, was da ist.
+            case 1 -> client.setScreen(new ModuleSettingsScreen(
+                    Module.get("scoreboard"), this));
             case 2 -> client.setScreen(new ChatUtilsScreen(this));
             default -> client.setScreen(null);   // HUD aus: zurueck ins Spiel
         }

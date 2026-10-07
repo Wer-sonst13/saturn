@@ -175,7 +175,7 @@ public class ModuleSettingsScreen extends SaturnScreen {
         // Scoreboard hat eine eigene, eigene Seite
         if (module.id.equals("scoreboard")
                 && Ui.inside(mx, my, width - 78, 46, 60, 20)) {
-            client.setScreen(new ScoreboardScreen(this));
+            client.setScreen(parent);
             return true;
         }
 

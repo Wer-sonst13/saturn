@@ -44,7 +44,13 @@ public class ScoreboardMixin {
             return;
         }
 
-        float scale = (float) Math.max(0.3, Math.min(3.0, mod.num("scale", 1.0)));
+                // m.scale benutzen, NICHT die Einstellung "scale".
+        //
+        // Das waren zwei verschiedene Zahlen: der Editor setzt m.scale, das
+        // Mausrad aendert m.scale - und gezeichnet wurde die Einstellung.
+        // Scrollen tat also gar nichts. Bei allen anderen HUD-Elementen ist
+        // es ebenfalls m.scale, das der Editor anfasst.
+        float scale = (float) Math.max(0.3, Math.min(3.0, mod.scale));
         double dx = mod.x;
         double dy = mod.y;
 

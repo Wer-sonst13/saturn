@@ -415,7 +415,7 @@ public final class HudRenderer {
             // Rand und ist mittig. Groesse ist eine brauchbare Schaetzung -
             // genau gemessen werden kann sie hier nicht, weil der Text
             // serverabhaengig ist. Fuer den Greifkasten reicht das.
-            float sc = (float) Math.max(0.3, m.num("scale", 1.0));
+            float sc = (float) Math.max(0.3, m.scale);
             int breite = mc.getWindow().getScaledWidth();
             int hoehe = mc.getWindow().getScaledHeight();
             int w = Math.round(180 * sc);

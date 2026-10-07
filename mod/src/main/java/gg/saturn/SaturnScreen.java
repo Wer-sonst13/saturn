@@ -37,21 +37,22 @@ public abstract class SaturnScreen extends Screen {
     /** Kopfzeile mit Titel, Untertitel und zurück-Knopf. */
     protected void drawHeader(DrawContext ctx, String title, String subtitle, boolean back) {
         Ui.Theme t = Ui.theme();
-        int h = 26;
+        int h = 30;
         ctx.fill(0, 0, width, h, 0xE60B0D12);
         Ui.outline(ctx, 0, h - 1, width, 1, Ui.withAlpha(t.accent, 0.35f));
 
-        // Kleines Logo direkt vor dem Namen, wie bei Norisk.
+        // Logo direkt vor dem Namen, in derselben Qualitaet wie im Menue.
         //
-        // Ueber das Modul "icon" ein- und ausschaltbar. Ist es aus, rueckt
-        // der Titel nach links und der Platz bleibt frei.
+        // An-/ausschalten ueber die Einstellung "Logo" im Icon-Modul. Frueher
+        // haengte es an icon.enabled - dieses wurde beim Start aus der Config
+        // zurueckgesetzt und das Logo war danach weg.
         int x = 8;
-        Module icon = Module.get("icon");
-        if (icon == null || icon.enabled) {
-            int lg = 14;
-            int lgX = x, lgY = (h - lg) / 2;
+        boolean logoAn = Module.get("icon") == null || Module.get("icon").flag("logo", true);
+        if (logoAn) {
+            int lg = 22;
+            int lgX = x, lgY = (h - lg - 6) / 2;
             Ui.logo(ctx, lgX, lgY, lg, t);
-            x = lgX + lg + 3 + 5;
+            x = lgX + lg + 3 + 6;
         }
         String gross = Ui.up(title);
         int titelBreite = textRenderer.getWidth(gross);
@@ -61,14 +62,14 @@ public abstract class SaturnScreen extends Screen {
         if (back) limit = Math.min(limit, width - 54 - 8);
 
         if (x + titelBreite <= limit) {
-            Ui.text(ctx, textRenderer, gross, x, 9, t.text);
+            Ui.text(ctx, textRenderer, gross, x, 11, t.text);
             x += titelBreite + 8;
         }
 
         // Untertitel nur zeichnen, wenn er zwischen Titel und "Zurueck" passt
         if (subtitle != null && !subtitle.isEmpty()
                 && x + textRenderer.getWidth(subtitle) <= limit) {
-            Ui.text(ctx, textRenderer, subtitle, x, 10, t.dim);
+            Ui.text(ctx, textRenderer, subtitle, x, 12, t.dim);
         }
 
         if (back) {
@@ -77,7 +78,7 @@ public abstract class SaturnScreen extends Screen {
     }
 
     protected boolean backClicked(double mx, double my) {
-        return Ui.inside(mx, my, width - 60, 0, 60, 26);
+        return Ui.inside(mx, my, width - 60, 0, 60, 30);
     }
 
     protected void goBack() {

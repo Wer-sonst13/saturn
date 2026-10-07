@@ -58,7 +58,7 @@ public class SaturnMenuScreen extends SaturnScreen {
     // ------------------------------------------------------------------ Layout
 
     private int fensterX() { return width / 2 - FENSTER_B / 2; }
-    private int fensterY() { return Math.max(6, height / 2 - FENSTER_H / 2); }
+    private int fensterY() { return Math.max(34, height / 2 - FENSTER_H / 2); }
     private int inhaltX() { return fensterX() + LEISTE_B; }
     private int inhaltB() { return FENSTER_B - LEISTE_B; }
     private int rasterOben() { return fensterY() + KOPF_H + 4; }

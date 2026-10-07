@@ -250,7 +250,8 @@ public final class Modules {
         register(new Module("icon", "Icon",
                 "Customize the icons displayed in the Saturn menu.",
                 "MISC", "bolt", false, false, true)
-                .add(Setting.choice("style", "Icon Style", "LINE", "LINE", "FILLED", "MINIMAL")));
+                .add(Setting.bool("logo", "Show Logo", true))
+    .add(Setting.choice("style", "Icon Style", "LINE", "LINE", "FILLED", "MINIMAL")));
 
         register(new Module("profiles", "Profiles",
                 "Save and switch between different mod and setting sets.",

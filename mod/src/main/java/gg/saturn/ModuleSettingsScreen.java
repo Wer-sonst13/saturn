@@ -60,7 +60,7 @@ public class ModuleSettingsScreen extends SaturnScreen {
     }
 
     private int fensterH() { return Math.min(280, height - 70); }
-    private int fensterY() { return Math.max(26, height / 2 - fensterH() / 2); }
+    private int fensterY() { return Math.max(34, height / 2 - fensterH() / 2); }
 
     private int rowHeight(Setting s) {
         if (s.type == Setting.Type.CHOICE) {

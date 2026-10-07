@@ -1,6 +1,6 @@
 {
   "name": "saturn",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Saturn Client - Minecraft-Launcher mit Client-Mod, Instanzen und Logs",
   "main": "main.js",
   "scripts": {

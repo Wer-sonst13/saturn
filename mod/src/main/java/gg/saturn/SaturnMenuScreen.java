@@ -3,6 +3,7 @@ package gg.saturn;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.render.RenderLayer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,6 +45,8 @@ public class SaturnMenuScreen extends SaturnScreen {
     private List<Module> gezeigt = new ArrayList<>();
     private double scroll;
     private int[] kartenTreffer = new int[0];
+    private int[] tabTreffer;
+    private List<String> tabNamen = new ArrayList<>();
     private final int[] sucheFeld = new int[4];
     private final int[] profilFeld = new int[4];
     private int profilAnzahl;
@@ -152,8 +155,15 @@ public class SaturnMenuScreen extends SaturnScreen {
         ctx.fill(x, y, x + LEISTE_B, y + FENSTER_H, Ui.withAlpha(t.accent, 0.06f));
         Ui.outline(ctx, x + LEISTE_B - 1, y, 1, FENSTER_H, Ui.withAlpha(t.accent, 0.20f));
 
-        // Titel oben in der Leiste
-        Icons.draw(ctx, "bolt", x + LEISTE_B / 2 - 4, y + 8, 1, t.accent, "LINE");
+        // Saturn-Logo oben links in der Ecke des Fensters.
+        //
+        // Die Textur ist 64x64, hier wird sie auf 22 heruntergezogen. Das
+        // Logo liegt ueber dem Leistenhintergrund, deshalb wird es danach
+        // gezeichnet.
+        int lg = 22;
+        int lgX = x + 6, lgY = y + 7;
+        ctx.drawTexture(RenderLayer::getGuiTextured, Logo.LOGO,
+                lgX, lgY, 0.0f, 0.0f, lg, lg, lg, lg);
 
         for (int i = 0; i < BEREICHE.length; i++) {
             int bx = TREFFER[i * 4], by = TREFFER[i * 4 + 1];
@@ -174,15 +184,22 @@ public class SaturnMenuScreen extends SaturnScreen {
         Ui.outline(ctx, x, y + KOPF_H - 1, inhaltB(), 1, Ui.withAlpha(t.accent, 0.18f));
 
         // Kategorien
+        //
+        // Wichtig: die Trefferkoordinaten werden mit gespeichert. Vorher wurden
+        // die Tabs nur gezeichnet, aber nie abgefragt - ein Klick auf ALL,
+        // RENDER, HUD usw. blieb deshalb wirkungslos.
         List<String> cats = new ArrayList<>();
         cats.add("ALL");
         cats.addAll(Modules.categories());
+        tabNamen = cats;
+        tabTreffer = new int[cats.size() * 4];
         int cx = x + RAND;
-        for (String c : cats) {
+        for (int i = 0; i < cats.size(); i++) {
+            String c = cats.get(i);
             String label = Ui.up(c);
             int bw = textRenderer.getWidth(label) + 14;
             boolean hover = Ui.inside(mx, my, cx, y + 7, bw, 18);
-            boolean an = c.equals(kategorie);
+            boolean an = c.equalsIgnoreCase(kategorie);
             if (an) {
                 ctx.fill(cx, y + 7, cx + bw, y + 25, Ui.withAlpha(t.accent, 0.22f));
                 Ui.outline(ctx, cx, y + 7, bw, 18, Ui.withAlpha(t.accent, 0.7f));
@@ -190,6 +207,10 @@ public class SaturnMenuScreen extends SaturnScreen {
                 ctx.fill(cx, y + 7, cx + bw, y + 25, Ui.withAlpha(t.text, 0.07f));
             }
             Ui.text(ctx, textRenderer, label, cx + 7, y + 13, an ? t.text : t.dim);
+            tabTreffer[i * 4] = cx;
+            tabTreffer[i * 4 + 1] = y + 7;
+            tabTreffer[i * 4 + 2] = bw;
+            tabTreffer[i * 4 + 3] = 18;
             cx += bw + 4;
         }
 
@@ -220,26 +241,29 @@ public class SaturnMenuScreen extends SaturnScreen {
                     m.enabled ? t.accent : Ui.withAlpha(t.text, 0.7f), stil);
 
             int tx = k[0] + 7 + Icons.SIZE * 2 + 7;
-            int schalterB = 30;
             int dreiB = 10;
-            int tw = k[2] - (tx - k[0]) - 10 - schalterB - dreiB;
+            // Rechts Platz fuer die drei Punkte, sonst laeuft die Beschreibung
+            // darunter.
+            int tw = k[2] - (tx - k[0]) - 10 - (dreiB + 6);
 
             Ui.text(ctx, textRenderer, Ui.up(m.name), tx, k[1] + 7,
                     m.enabled ? t.text : Ui.withAlpha(t.dim, 0.95f));
 
+            // Die y-Position muss mit jeder Zeile steigen. Vorher standen
+            // beide Zeilen an derselben Stelle und ueberlagerten sich.
+            int ty = k[1] + 18;
             for (String zeile : Ui.wrap(textRenderer, m.desc, Math.max(20, tw), 2)) {
-                Ui.text(ctx, textRenderer, zeile, tx, k[1] + 18, Ui.withAlpha(t.dim, 0.85f));
+                Ui.text(ctx, textRenderer, zeile, tx, ty, Ui.withAlpha(t.dim, 0.85f));
+                ty += 9;
             }
 
-            // Schalter
-            int sw = 26, sh = 13;
-            Ui.toggle(ctx, k[0] + k[2] - sw - 16, k[1] + KARTEN_H - sh - 8, sw, sh,
-                    m.enabled, t, hover);
-            // Drei-Punkte-Knopf
+            // Drei-Punkte-Knopf fuer die Einstellungen. Der Schalter ist
+            // bewusst weg: die ganze Karte schaltet das Modul.
             int dx = k[0] + k[2] - dreiB - 6, dy = k[1] + KARTEN_H / 2 - 5;
-            ctx.fill(dx, dy, dx + dreiB, dy + 1, Ui.withAlpha(t.text, 0.6f));
-            ctx.fill(dx, dy + 4, dx + dreiB, dy + 5, Ui.withAlpha(t.text, 0.6f));
-            ctx.fill(dx, dy + 8, dx + dreiB, dy + 9, Ui.withAlpha(t.text, 0.6f));
+            int dFarbe = Ui.withAlpha(hover ? t.text : t.dim, hover ? 0.95f : 0.7f);
+            ctx.fill(dx, dy, dx + dreiB, dy + 1, dFarbe);
+            ctx.fill(dx, dy + 4, dx + dreiB, dy + 5, dFarbe);
+            ctx.fill(dx, dy + 8, dx + dreiB, dy + 9, dFarbe);
 
             kartenTreffer[i * 4] = k[0];
             kartenTreffer[i * 4 + 1] = k[1];
@@ -259,23 +283,46 @@ public class SaturnMenuScreen extends SaturnScreen {
         Ui.text(ctx, textRenderer, rechts, x + inhaltB() - RAND - Ui.width(textRenderer, rechts), y + 7, t.dim);
     }
 
+    /**
+     * Profilauswahl.
+     *
+     * Sie klappt rechts neben der linken Leiste auf, nicht ueber ihr - vorher
+     * lag sie ueber den Karten und wirkte wie ein schwarzer Fleck.
+     */
     private void drawProfil(DrawContext ctx, Ui.Theme t, int mx, int my) {
         List<String> namen = ConfigStore.profileNames();
-        int w = 160, h = Math.max(30, namen.size() * 16 + 10);
-        int x = fensterX() + 6, y = TREFFER[4] + TREFFER[5] + 4;
-        ctx.fill(x, y, x + w, y + h, 0xE60B0D12);
-        Ui.outline(ctx, x, y, w, h, Ui.withAlpha(t.accent, 0.5f));
+        int eintragH = 18;
+        int w = 150;
+        int h = 20 + namen.size() * eintragH + 8;
+        int x = fensterX() + LEISTE_B + 6;
+        int y = fensterY() + KOPF_H + 8;
+        // Nicht aus dem Fenster herausschieben.
+        x = Math.min(x, fensterX() + FENSTER_B - w - 6);
+        y = Math.min(y, fensterY() + FENSTER_H - h - 6);
+
+        Ui.panel(ctx, x, y, w, h, t);
+        Ui.outline(ctx, x, y, w, h, Ui.withAlpha(t.accent, 0.45f));
+        Ui.text(ctx, textRenderer, Ui.up("PROFIL WECHSELN"), x + 8, y + 6, Ui.withAlpha(t.dim, 0.95f));
+        Ui.outline(ctx, x + 6, y + 16, w - 12, 1, Ui.withAlpha(t.accent, 0.18f));
+
+        String aktiv = ConfigStore.activeProfile();
         for (int i = 0; i < namen.size(); i++) {
             String n = namen.get(i);
-            boolean hover = Ui.inside(mx, my, x + 3, y + 5 + i * 16, w - 6, 14);
-            boolean aktiv = n.equals(ConfigStore.activeProfile());
-            if (hover || aktiv) ctx.fill(x + 3, y + 5 + i * 16, x + w - 3, y + 19 + i * 16,
-                    Ui.withAlpha(t.accent, aktiv ? 0.25f : 0.12f));
-            Ui.text(ctx, textRenderer, (aktiv ? "▸ " : "   ") + Ui.up(n), x + 6, y + 8 + i * 16,
-                    aktiv ? t.accent : t.text);
+            int ey = y + 20 + i * eintragH;
+            boolean hover = Ui.inside(mx, my, x + 4, ey, w - 8, eintragH - 2);
+            boolean an = n.equals(aktiv);
+            if (an || hover) {
+                ctx.fill(x + 4, ey, x + w - 4, ey + eintragH - 2,
+                        Ui.withAlpha(t.accent, an ? 0.26f : 0.12f));
+            }
+            Ui.text(ctx, textRenderer, (an ? "▸ " : "  ") + Ui.up(n), x + 9, ey + 5,
+                    an ? t.accent : (hover ? t.text : Ui.withAlpha(t.dim, 0.95f)));
         }
-        profilFeld[0] = x; profilFeld[1] = y; profilFeld[2] = w; profilFeld[3] = h;
-        profilAnzahl = namen.size();
+        if (namen.isEmpty()) {
+            Ui.text(ctx, textRenderer, "KEINE PROFILE", x + 9, y + 26, Ui.withAlpha(t.dim, 0.8f));
+        }
+
+        profilFeld[0] = x; profilFeld[1] = y + 20; profilFeld[2] = w; profilFeld[3] = namen.size() * eintragH;
     }
 
     private void drawSettings(DrawContext ctx, Ui.Theme t, int mx, int my) {
@@ -297,13 +344,14 @@ public class SaturnMenuScreen extends SaturnScreen {
             List<String> namen = ConfigStore.profileNames();
             int x = profilFeld[0], y = profilFeld[1], w = profilFeld[2];
             for (int i = 0; i < namen.size(); i++) {
-                if (Ui.inside(mx, my, x + 3, y + 5 + i * 16, w - 6, 14)) {
+                if (Ui.inside(mx, my, x + 4, y + i * 18, w - 8, 16)) {
                     ConfigStore.activateProfile(namen.get(i));
                     ConfigStore.saveActiveProfile();
-                    profilOffen = false;
+                    sammeln();
                     return true;
                 }
             }
+            // Ein Klick daneben schliesst es wieder.
             profilOffen = false;
             return true;
         }
@@ -312,11 +360,23 @@ public class SaturnMenuScreen extends SaturnScreen {
         for (int i = 0; i < BEREICHE.length; i++) {
             if (!Ui.inside(mx, my, TREFFER[i * 4], TREFFER[i * 4 + 1], TREFFER[i * 4 + 2], TREFFER[i * 4 + 3])) continue;
             switch (i) {
-                case 1 -> profilOffen = true;
+                case 1 -> profilOffen = !profilOffen;
                 case 2 -> client.setScreen(new ModuleSettingsScreen(Module.get("theme"), this));
-                default -> { }
+                default -> { profilOffen = false; }
             }
             return true;
+        }
+
+        // Kategorie-Tabs
+        if (tabTreffer != null) {
+            for (int i = 0; i < tabNamen.size(); i++) {
+                if (!Ui.inside(mx, my, tabTreffer[i * 4], tabTreffer[i * 4 + 1],
+                        tabTreffer[i * 4 + 2], tabTreffer[i * 4 + 3])) continue;
+                kategorie = tabNamen.get(i);
+                scroll = 0;
+                sammeln();
+                return true;
+            }
         }
 
         // Suche
@@ -324,34 +384,27 @@ public class SaturnMenuScreen extends SaturnScreen {
             sucheAktiv = !sucheAktiv;
             return true;
         }
-        sucheAktiv = false;
+        if (sucheAktiv && button == 0 && !Ui.inside(mx, my, fensterX(), fensterY(), FENSTER_B, FENSTER_H)) {
+            sucheAktiv = false;
+        }
 
         // Karten
         for (int i = 0; i < gezeigt.size(); i++) {
-            int[] k = kartenTreffer.length > i * 4 + 3
-                    ? new int[]{kartenTreffer[i * 4], kartenTreffer[i * 4 + 1],
-                             kartenTreffer[i * 4 + 2], kartenTreffer[i * 4 + 3]}
-                    : null;
-            if (k == null) continue;
-            if (!Ui.inside(mx, my, k[0], k[1], k[2], k[3])) continue;
+            if (kartenTreffer.length < i * 4 + 4) continue;
+            int kx = kartenTreffer[i * 4], ky = kartenTreffer[i * 4 + 1];
+            int kb = kartenTreffer[i * 4 + 2], kh = kartenTreffer[i * 4 + 3];
+            if (!Ui.inside(mx, my, kx, ky, kb, kh)) continue;
             Module m = gezeigt.get(i);
-            int schalterX = k[0] + k[2] - 26 - 16;
-            if (Ui.inside(mx, my, schalterX, k[1] + KARTEN_H - 13 - 8, 26, 13)) {
-                m.enabled = !m.enabled;
-                ConfigStore.save();
-                return true;
-            }
-            int dx = k[0] + k[2] - 10 - 6;
-            if (Ui.inside(mx, my, dx - 4, k[1] + KARTEN_H / 2 - 6, 18, 12)) {
+
+            // Drei Punkte links die Einstellungen auf, sonst schaltet die Karte.
+            int dreiX = kx + kb - 16, dreiY = ky + kh / 2 - 6;
+            if (Ui.inside(mx, my, dreiX, dreiY, 16, 12)) {
                 client.setScreen(new ModuleSettingsScreen(m, this));
                 return true;
             }
-            // Klick auf die Karte: Bildschirm, falls das Modul einen hat
-            if (m.hasMenu && kartenTreffer != null) {
-                Module mm = Module.get(m.id);
-                if (mm != null && mm.hasMenu) client.setScreen(new ModuleSettingsScreen(mm, this));
-                return true;
-            }
+
+            m.enabled = !m.enabled;
+            ConfigStore.save();
             return true;
         }
         return true;
@@ -377,18 +430,53 @@ public class SaturnMenuScreen extends SaturnScreen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // Escape beendet zuerst die Suche, nicht das ganze Menue.
         if (sucheAktiv) {
+            if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
+                sucheAktiv = false;
+                return true;
+            }
             if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE) {
                 if (!suche.isEmpty()) suche = suche.substring(0, suche.length() - 1);
                 sammeln();
                 return true;
             }
-            if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER || keyCode == 257) {
+            if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER) {
                 sucheAktiv = false;
                 return true;
             }
+            // Buchstaben und Ziffern anhaengen. Ohne das blieb das
+            // Suchfeld leer und die Suche tat nichts.
+            String zeichen = tasteZuZeichen(keyCode, modifiers);
+            if (zeichen != null) {
+                suche += zeichen;
+                sammeln();
+                return true;
+            }
+            return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    /** GLFW-Tastencode zu einem Zeichen, oder null wenn die Taste egal ist. */
+    private static String tasteZuZeichen(int keyCode, int modifiers) {
+        boolean gross = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
+        // A..Z liegen hintereinander, deshalb geht das als Bereich.
+        if (keyCode >= org.lwjgl.glfw.GLFW.GLFW_KEY_A
+                && keyCode <= org.lwjgl.glfw.GLFW.GLFW_KEY_Z) {
+            return gross ? "" + (char) keyCode : "" + (char) (keyCode + 32);
+        }
+        // Ziffern liegen NICHT hintereinander, deshalb einzeln auflisten.
+        int[] ziffern = {
+                org.lwjgl.glfw.GLFW.GLFW_KEY_0, org.lwjgl.glfw.GLFW.GLFW_KEY_1,
+                org.lwjgl.glfw.GLFW.GLFW_KEY_2, org.lwjgl.glfw.GLFW.GLFW_KEY_3,
+                org.lwjgl.glfw.GLFW.GLFW_KEY_4, org.lwjgl.glfw.GLFW.GLFW_KEY_5,
+                org.lwjgl.glfw.GLFW.GLFW_KEY_6, org.lwjgl.glfw.GLFW.GLFW_KEY_7,
+                org.lwjgl.glfw.GLFW.GLFW_KEY_8, org.lwjgl.glfw.GLFW.GLFW_KEY_9};
+        for (int i = 0; i < ziffern.length; i++) if (keyCode == ziffern[i]) return "" + i;
+        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE) return " ";
+        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_MINUS) return gross ? "_" : "-";
+        return null;
     }
 
     @Override

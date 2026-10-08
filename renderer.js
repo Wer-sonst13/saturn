@@ -750,7 +750,9 @@ function luminance(hex) {
 
 // --------------------------------------------------------------------- Start
 (async function () {
-  $("ver").textContent = "v" + (window.saturnVersion || "1.0.0");
+  // Kein festes "1.0.0" als Rueckfall: sonst zeigt der Client eine Version,
+  // die es gar nicht mehr gibt, sobald das Einspruezen scheitert.
+  $("ver").textContent = window.saturnVersion ? "v" + window.saturnVersion : "";
   document.querySelectorAll(".nb").forEach((e) => e.onclick = () => nav(e.dataset.p));
   settings = await ipc.invoke("settings");
   if (settings.ram) $("ram").value = settings.ram;

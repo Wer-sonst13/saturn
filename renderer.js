@@ -691,7 +691,10 @@ ipc.on("progress", (_e, { id, pct, task, total: t }) => {
   if (id !== sel) return;
   $("progress").classList.add("on");
   $("progressBar").style.width = pct + "%";
-  $("progressText").textContent = t ? `${pct}%  (${task}/${t})` : `${pct}%`;
+  // Ohne "total" kommt aus dem Hauptprozess ein fertiger Text - z. B.
+  // "Lade 8 Mods von Modrinth...". Der soll auch erscheinen, sonst
+  // stuende dort nur eine Zahl ohne Bedeutung.
+  $("progressText").textContent = t ? `${pct}%  (${task}/${t})` : (task || `${pct}%`);
 });
 ipc.on("installed", (_e, { file }) => toast("+ " + file, "ok"));
 ipc.on("done", async ({ id }) => {

@@ -623,6 +623,17 @@ async function fehlendeVorinstallierteNachladen(inst) {
   if (!fehlen.length) return;
   log(`- ${fehlen.length} vorinstallierte Mod fehlt, wird nachgeladen: ` +
       fehlen.map((m) => m.name).join(", "));
+
+  // Ohne diese Meldung sah der erste Start auf einem frischen Rechner aus
+  // wie ein Haenger: es wurden mehrere Megabyte von Modrinth geholt,
+  // aber der Ladebalken gehoerte zu Minecraft und kam erst danach.
+  if (win) {
+    win.webContents.send("progress", {
+      id: inst.id,
+      pct: 0,
+      task: `Lade ${fehlen.length} Mod${fehlen.length > 1 ? "s" : ""} von Modrinth...`,
+    });
+  }
   const files = inst.files || (inst.files = []);
   await installMods(inst.mc, dir, fehlen.map((m) => m.slug), files);
   for (const m of fehlen) alsVorinstalliertMerken(files, m.slug);

@@ -2,7 +2,7 @@ package gg.saturn;
 
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.render.RenderLayer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -93,8 +93,9 @@ public final class Ui {
         int a = groesse + r * 2;
         fill(ctx, x - r, y - r, a, a, 0xFF0E0E0E);
         outline(ctx, x - r, y - r, a, a, withAlpha(t.accent, 0.8f));
-        ctx.drawTexture(RenderPipelines.GUI_TEXTURED, Logo.LOGO, x, y,
-                0.0f, 0.0f, groesse, groesse, groesse, groesse);
+        // Der Aufruf unterscheidet sich je Minecraft-Version, deshalb steht
+        // er in LogoMaler - eine eigene Datei je API-Stand.
+        LogoMaler.malen(ctx, x, y, groesse);
     }
 
     public static void outline(DrawContext ctx, int x, int y, int w, int h, int color) {

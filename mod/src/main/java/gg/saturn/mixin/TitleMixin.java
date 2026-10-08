@@ -60,16 +60,16 @@ public class TitleMixin {
         int alpha = Math.round(255 * opacity) << 24;
 
         var ms = ctx.getMatrices();
-        ms.pushMatrix();
-        ms.translate((float) (w / 2.0 + m.num("x", 0)), (float) (h / 2.0 + m.num("y", 0)));
-        ms.scale(sc, sc);
-        ms.translate(-w / 2.0f, -h / 2.0f);
+        ms.push();
+        ms.translate(w / 2.0 + m.num("x", 0), h / 2.0 + m.num("y", 0), 0);
+        ms.scale(sc, sc, 1f);
+        ms.translate(-w / 2.0, -h / 2.0, 0);
 
         int y = 10;
         ctx.drawText(tr, title, (w - tr.getWidth(title)) / 2, y, 0xFFFFFFFF | alpha, false);
         if (m.flag("showSubtitle", true) && subtitle != null) {
             ctx.drawText(tr, subtitle, (w - tr.getWidth(subtitle)) / 2, y + 12, 0xFF808080 | alpha, false);
         }
-        ms.popMatrix();
+        ms.pop();
     }
 }

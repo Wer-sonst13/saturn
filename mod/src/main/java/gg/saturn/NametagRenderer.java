@@ -87,11 +87,11 @@ public final class NametagRenderer {
             int c = Ui.withAlpha(color, fade);
 
             var ms = ctx.getMatrices();
-            ms.pushMatrix();
-            ms.translate(x0, y0);
-            ms.scale(s, s);
+            ms.push();
+            ms.translate(x0, y0, 0);
+            ms.scale(s, s, 1f);
             ctx.drawText(tr, name, 0, 0, c, true);
-            ms.popMatrix();
+            ms.pop();
         }
     }
 

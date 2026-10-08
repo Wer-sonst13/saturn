@@ -3,7 +3,7 @@ package gg.saturn;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.option.KeyBinding;
-import org.joml.Matrix3x2fStack;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.item.ItemStack;
@@ -109,18 +109,18 @@ public final class HudRenderer {
     }
 
     public static void draw(DrawContext ctx, MinecraftClient mc, Module m) {
-        Matrix3x2fStack s = ctx.getMatrices();
-        s.pushMatrix();
-        s.translate((float) m.x, (float) m.y);
+        MatrixStack s = ctx.getMatrices();
+        s.push();
+        s.translate(m.x, m.y, 0);
         float sc = (float) Math.max(0.2, m.scale);
-        s.scale(sc, sc);
+        s.scale(sc, sc, 1f);
         try {
             paint(ctx, mc, m);
         } catch (Exception ex) {
             // Ein kaputtes Modul darf das HUD nicht mitreißen.
             ex.printStackTrace();
         }
-        s.popMatrix();
+        s.pop();
     }
 
     /** Inhalt eines Moduls - gibt die verbrauchte Höhe zurück. */
@@ -277,9 +277,9 @@ public final class HudRenderer {
         // lagen die Icons vorher uebereinander.
         final int SLOT = 16;
 
-        Matrix3x2fStack ms = ctx.getMatrices();
-        ms.pushMatrix();
-        ms.scale(sc, sc);
+        MatrixStack ms = ctx.getMatrices();
+        ms.push();
+        ms.scale(sc, sc, 1f);
 
         int y = 0;
         for (ItemStack s : armorOf(mc.player)) {
@@ -309,7 +309,7 @@ public final class HudRenderer {
             }
             y += SLOT;
         }
-        ms.popMatrix();
+        ms.pop();
         // Hoehe in unskalierten Pixeln zurueckgeben, damit der Kasten passt.
         return Math.round(y * sc);
     }

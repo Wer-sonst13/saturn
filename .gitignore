@@ -10,6 +10,7 @@ mod/build/
 mod/.gradle/
 mod/run/
 mod/out/
+mod/bin/
 
 # Die Mod wird beim Bauen erzeugt (lokal oder in GitHub Actions).
 # Eine Jar je Minecraft-Version, der Name nennt die Version.

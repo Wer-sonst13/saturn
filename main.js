@@ -572,11 +572,7 @@ const VORINSTALLIERT = [
   { slug: "ebe", name: "Enhanced Block Entities" },// Block-Entities schneller zeichnen
   { slug: "sodium-extra", name: "Sodium Extra" },  // Addon, braucht Sodium
   { slug: "simple-voice-chat", name: "Simple Voice Chat" }, // Voicechat
-  // Discord-Anzeige "Spielt Saturn Client". Eine Dateifassung deckt alle
-  // Minecraft-Versionen ab und hat keine Pflicht-Abhaengigkeiten - anders
-  // als die anderen drei Kandidaten, die craterlib oder architectury
-  // mitziehen.
-  { slug: "discord-statusbot", name: "Discord Status" },
+
   { slug: "third-person-nametags", name: "Nametags" },
   { slug: "fullbright", name: "Fullbright" },
 ];

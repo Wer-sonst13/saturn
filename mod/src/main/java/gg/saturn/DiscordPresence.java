@@ -27,7 +27,27 @@ public final class DiscordPresence {
     /** Die Discord-Anwendung. Name und Logo kommen von dort. */
     private static final String APP_ID = "1559280467155615794";
 
+    /**
+     * Schluessel des Bildes aus den Rich-Presence-Assets.
+     *
+     * Discord nimmt hier den Dateinamen ohne Endung. Hochgeladen wurde
+     * saturn-client-512.png, also ist der Schluessel saturn-client-512.
+     */
+    private static final String ASSET = "saturn-client-512";
+
     private DiscordPresence() {}
+
+    /**
+     * Schreibt jeden Schritt nach stderr. Der Launcher liest stderr mit und
+     * zeigt es im Log-Bereich - dort ist auch die Ausgabe der Mods zu sehen.
+     *
+     * An: false  -> true, wenn wieder gesucht wird.
+     */
+    private static final boolean DEBUG = true;
+
+    private static void log(String text) {
+        if (DEBUG) System.err.println("[SaturnDiscord] " + text);
+    }
 
     private static RandomAccessFile pipe;
     private static Thread leser;
@@ -46,9 +66,11 @@ public final class DiscordPresence {
                 continue;
             }
             if (handshake()) {
+                log("verbunden mit " + pfad + ", Discord hat READY gesendet");
                 leserStarten();
                 return;
             }
+            log(pfad + ": kein READY bekommen");
             close();
         }
     }
@@ -92,7 +114,11 @@ public final class DiscordPresence {
      * @param details  kleine Zeile, z. B. die Minecraft-Version
      */
     public static void setzen(String anzeige, String details) {
-        if (!aktiv || pipe == null) return;
+        if (!aktiv) return;
+        if (pipe == null) {
+            log("keine Verbindung, setzen() wird derzeit nicht ausgefuehrt");
+            return;
+        }
         String neuer = anzeige + "|" + details;
         if (neuer.equals(gesetzt)) return;   // nichts Neues -> nichts senden
         gesetzt = neuer;
@@ -111,12 +137,23 @@ public final class DiscordPresence {
             b.append("\"details\":\"").append(json(details)).append("\"");
         }
         b.append(",\"timestamps\":{\"start\":").append(System.currentTimeMillis() / 1000L)
+         .append("}")
+
+         // Ohne dieses Feld zeigt Discord die Anzeige gar nicht erst an.
+         // Der Schluessel ist der Dateiname des hochgeladenen Assets, ohne
+         // Endung - hier "saturn-client-512".
+         .append(",\"assets\":{")
+         .append("\"large_image\":\"").append(ASSET).append("\"")
+         .append(",\"large_text\":\"Saturn Client\"")
+         .append("}")
+
          .append("}},\"nonce\":null}}");
 
         try {
+            log("sende: " + b);
             rahmenSenden(1, b.toString());
         } catch (IOException e) {
-            // Verbindung verloren - beim naechsten Versuch neu aufbauen.
+            log("Senden fehlgeschlagen: " + e + " - Verbindung wird neu aufgebaut");
             close();
         }
     }

@@ -572,13 +572,15 @@ const VORINSTALLIERT = [
   { slug: "ebe", name: "Enhanced Block Entities" },// Block-Entities schneller zeichnen
   { slug: "sodium-extra", name: "Sodium Extra" },  // Addon, braucht Sodium
   { slug: "simple-voice-chat", name: "Simple Voice Chat" }, // Voicechat
-  // Discord-Anzeige "Spielt Saturn Client". Braucht nur Fabric API, die
-  // ohnehin vorinstalliert ist, und keine native Bibliothek.
+  // Discord-Anzeige "Spielt Saturn Client".
   //
-  // Abgedeckt sind 1.21.3 bis 1.21.11. Fuer 1.21.1, 1.21.2 und 1.21.8 gibt
-  // es keine Fassung - installMods ueberspringt das dann mit einer
-  // Logzeile, die Instanz startet trotzdem.
-  { slug: "dcintegration", name: "Discord Anzeige" },
+  // "srdp" ist das einzige der geprueften Mods mit environment: client -
+  // es laeuft also im Spiel und nicht auf einem Server. Die beiden anderen
+  // Kandidaten fielen durch: dcintegration ist environment: server und
+  // verbindet nur den Chat, discord-statusbot ist ein Bot.
+  { slug: "srdp", name: "Discord Anzeige" },
+  { slug: "architectury-api", name: "Architectury" },   // Abhaengigkeit von srdp
+  { slug: "cloth-config", name: "Cloth Config" },        // Abhaengigkeit von srdp
 
   { slug: "third-person-nametags", name: "Nametags" },
   { slug: "fullbright", name: "Fullbright" },

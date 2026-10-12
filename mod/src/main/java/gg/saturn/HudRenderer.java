@@ -87,6 +87,12 @@ public final class HudRenderer {
         // lagen FPS, Ping und Coords im Hub und auf dem Mod-Menue oben drauf
         // und die Schrift lief ineinander.
         if (mc.currentScreen instanceof SaturnScreen) return;
+        // Discord: Zustand melden, bevor irgendetwas gezeichnet wird.
+        // Das laeuft in jedem Bild, kostet aber fast nichts - gesetzt()
+        // vergleicht und sendet nur bei echter Aenderung.
+        DiscordPresence.verbinden();
+        DiscordPresence.setzen(discordAnzeige(mc), mc.world != null ? "" : "1.21.4");
+
         for (Module m : Modules.hudModulesCached()) {
             if (!m.enabled || m.id.equals("scoreboard")) continue;
             Profiler.start(m.id);
@@ -476,5 +482,20 @@ public final class HudRenderer {
             case "splitchat": return new int[]{160, 120};   // Chatfenster
             default: return new int[]{80, 20};
         }
+    }
+
+    /**
+     * Was in Discord gross angezeigt wird.
+     *
+     * Im Spiel der Servername, im Hauptmenue "Idling". Der Minecraft-
+     * Client nennt den Server selbst - das wird nicht geraten.
+     */
+    private static String discordAnzeige(MinecraftClient mc) {
+        if (mc == null) return "Idling";
+        var e = mc.getCurrentServerEntry();
+        // ServerInfo.name ist ein oeffentliches Feld, keine Methode - am
+        // Bytecode nachgesehen.
+        if (e != null && e.name != null) return e.name;
+        return "Idling";
     }
 }
